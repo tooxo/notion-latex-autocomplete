@@ -2,9 +2,12 @@ import re
 import json
 from os import listdir
 
-normals = set(listdir("input")) - {"environment"}
+normals = list(listdir("input"))
+normals.remove("environment")
+normals.sort()
 
 f = open("constants.js","w")
+f.write("// This file was automatically generated. Do not touch.\n\n")
 for nor in normals:
     print(nor)
     c = json.load(open("input/"+nor, "r"))
@@ -14,11 +17,13 @@ for nor in normals:
         n = n.replace("\\", "")
         n = re.sub(r"{}", "{$$}", n)
         flea.append(n)
+    flea.sort()
     print(flea)
 
     f.write("const " + nor + "= " + json.dumps(flea) + ";\n")
 
 env = json.load(open("input/environment", "r"))
+env.sort()
 p = []
 for e in env:
     p.append(
