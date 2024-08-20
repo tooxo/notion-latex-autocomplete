@@ -8,6 +8,6 @@
     "\\boxed{}",
     "\\angl{}",
     "\\phase{}",
-    "\\tag{hi}",
-    "\\tag*{hi}"
+    "\\tag{}",
+    "\\tag*{}"
 ]
