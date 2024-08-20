@@ -1,0 +1,32 @@
+[
+    "matrix",
+    "array",
+    "pmatrix",
+    "bmatrix",
+    "vmatrix",
+    "Vmatrix",
+    "Bmatrix",
+    "cases",
+    "rcases",
+    "smallmatrix",
+    "subarray",
+    "darray",
+    "dcases",
+    "drcases",
+    "matrix*",
+    "pmatrix*",
+    "bmatrix*",
+    "Bmatrix*",
+    "vmatrix*",
+    "Vmatrix*",
+    "alignment",
+    "equation*",
+    "gather*",
+    "align*",
+    "alignat*",
+    "gathered",
+    "aligned",
+    "alignedat"
+]
+
+

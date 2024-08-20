@@ -1,0 +1,21 @@
+{
+  "name": "LaTeX Autocomplete for Notion",
+  "author": "Till Schulte",
+  "version": "1.0",
+  "manifest_version": 3,
+  "minimum_chrome_version": "120",
+  "description": "Uses the chrome.userScripts API to inject JavaScript into web pages.",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://notion.so/*","https://www.notion.so/*"
+      ],
+      "js": ["constants.js", "autocomplete.js"],
+      "css": ["styles.css"],
+      "world": "MAIN"
+    }
+  ],
+
+  "permissions": ["storage", "userScripts", "scripting"],
+  "host_permissions": ["https://notion.so/*", "https://www.notion.so/*"]
+}

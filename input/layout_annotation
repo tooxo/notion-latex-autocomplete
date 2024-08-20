@@ -1,0 +1,13 @@
+[
+    "\\cancel{}",
+    "\\bcancel{}",
+    "\\xcancel{}",
+    "\\sout{}",
+    "\\not{}",
+    "\\sout{}",
+    "\\boxed{}",
+    "\\angl{}",
+    "\\phase{}",
+    "\\tag{hi}",
+    "\\tag*{hi}"
+]
