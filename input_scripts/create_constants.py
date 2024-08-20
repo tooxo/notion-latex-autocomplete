@@ -32,5 +32,6 @@ for e in env:
 f.write("const environment = " + json.dumps(p) + ";\n")
 f.write("\n")
 
-f.write("const all = [" + ", ".join(listdir("input")) + "];")
+f.write("const all = [" + ", ".join(normals + ["environment"]) + "];\n")
+f.write("const all_flattened = all.flat(1);\n")
 f.close()

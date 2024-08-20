@@ -3,7 +3,7 @@ completionsDiv.id = "completions";
 
 class AutoCompleteState {
     active = false;
-    allCompletions = all.flat(1)
+    allCompletions = all_flattened
 
     partial = ""
     currentlyFittingCompletions = []
