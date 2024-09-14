@@ -14,9 +14,9 @@ class AutoCompleteState {
     lastCompletions = []
 }
 
-let state = new AutoCompleteState()
+let state = new AutoCompleteState();
 
-let overlayContainer = null
+let overlayContainer = null;
 const observer = new MutationObserver(callback);
 
 function findOverlayContainer() {
@@ -57,9 +57,27 @@ function callback(mutationList, observer) {
 }
 
 function updatePositionCompletionList(target) {
-    console.log("update!")
-    completionsDiv.style.top = target.getBoundingClientRect().top + target.getBoundingClientRect().height + "px"
-    completionsDiv.style.left = target.getBoundingClientRect().left + "px"
+    let selection = window.getSelection();
+    if (selection !== null) {
+        if (selection.focusNode instanceof Text) {
+            target = selection.focusNode.parentNode;
+        } else {
+            target = selection.focusNode;
+        }
+    } else {
+        console.log("selection was zero!");
+        debugger;
+    }
+
+    if (target === null || target === undefined) {
+        if (state.active)
+            debugger;
+        else
+            return;
+    }
+
+    completionsDiv.style.top = target.getBoundingClientRect().top + target.getBoundingClientRect().height + "px";
+    completionsDiv.style.left = target.getBoundingClientRect().left + "px";
 }
 
 function getCursorPosition() {
@@ -150,7 +168,7 @@ function setCursorPositionAfter(target) {
     }
 }
 
-function updateCompletionList(target) {
+function updateCompletionList(target, updateLocation = true) {
     let previousSelection = state.currentlyFittingCompletions[state.currentlySelected]
 
     state.currentlyFittingCompletions = []
@@ -216,7 +234,23 @@ function updateCompletionList(target) {
 
     for (let i = 0; i < Math.min(5, state.currentlyFittingCompletions.length); i++) {
         let p_elem = document.createElement("p")
-        p_elem.innerHTML = state.currentlyFittingCompletions[i].replaceAll("$$", "")
+
+        let span_elem = document.createElement("span");
+        span_elem.classList.add("name");
+
+        if (katex !== undefined) {
+            katex.render(
+                "\\" + state.currentlyFittingCompletions[i].replaceAll("$$", ""), p_elem, {
+                    throwOnError: true
+                }
+            );
+        } else {
+            console.log("katex is undefined!")
+        }
+        p_elem.appendChild(span_elem);
+
+        span_elem.innerHTML = state.currentlyFittingCompletions[i].replaceAll("$$", "")
+
         if (i === state.currentlySelected) {
             p_elem.classList.add("selected")
         }
@@ -229,7 +263,8 @@ function updateCompletionList(target) {
         completionsDiv.style.display = "block"
     }
 
-    updatePositionCompletionList(target)
+    if (updateLocation)
+        updatePositionCompletionList(target)
 }
 
 
@@ -325,7 +360,7 @@ function addCallbacks(element) {
 
                 e.preventDefault()
                 state.currentlySelected++;
-                updateCompletionList(e.target)
+                updateCompletionList(e.target, false)
                 break
             case "ArrowUp":
                 if (!state.active) {
@@ -337,7 +372,7 @@ function addCallbacks(element) {
                 if (state.currentlySelected < 0) {
                     state.currentlySelected = Math.min(4, state.currentlyFittingCompletions.length - 1)
                 }
-                updateCompletionList(e.target)
+                updateCompletionList(e.target, false)
                 break
         }
     })

@@ -12,6 +12,14 @@
 #completions > p {
     margin: 0;
     padding: 2px;
+
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row-reverse;
+}
+
+#completions > p > span.katex {
+    max-height: 24px;
 }
 
 #completions > p.selected {
