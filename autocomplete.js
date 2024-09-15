@@ -234,16 +234,38 @@ function updateCompletionList(target, updateLocation = true) {
 
     for (let i = 0; i < Math.min(5, state.currentlyFittingCompletions.length); i++) {
         let p_elem = document.createElement("p")
+        completionsDiv.appendChild(p_elem)
+
+        p_elem.hidden = true;
 
         let span_elem = document.createElement("span");
         span_elem.classList.add("name");
 
         if (katex !== undefined) {
+            let katexString = state.currentlyFittingCompletions[i];
+            let alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
+            while (katexString.includes("$$")) {
+                katexString = katexString.replace("$$", alphabet.shift());
+            }
+
             katex.render(
-                "\\" + state.currentlyFittingCompletions[i].replaceAll("$$", ""), p_elem, {
+                "\\" + katexString, p_elem, {
                     throwOnError: true
                 }
             );
+
+            let katex_elem = p_elem.getElementsByClassName("katex").item(0);
+            let wanted_height = katex_elem.scrollHeight;
+            let height = katex_elem.getBoundingClientRect().height;
+
+            // prevent overflow by scaling down
+            if (Math.abs(wanted_height - height) > 1) {
+                // too far apart, scale
+
+                let scale = height / wanted_height;
+                katex_elem.setAttribute("style", "transform: scale(" + scale + ");");
+            }
+            console.log("" + i + "-height=" + height);
         } else {
             console.log("katex is undefined!")
         }
@@ -254,7 +276,8 @@ function updateCompletionList(target, updateLocation = true) {
         if (i === state.currentlySelected) {
             p_elem.classList.add("selected")
         }
-        completionsDiv.appendChild(p_elem)
+
+        p_elem.hidden = false;
     }
 
     if (state.currentlyFittingCompletions.length === 0) {
@@ -384,7 +407,6 @@ function addCallbacks(element) {
     element.addEventListener('blur', (e) => {
         completionsDiv.style.display = "none";
         state = new AutoCompleteState();
-        console.log("blur", e)
     })
 
     let parkingLot;
