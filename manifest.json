@@ -24,7 +24,6 @@
   ],
   "permissions": [
     "storage",
-    "userScripts",
     "scripting"
   ],
   "host_permissions": [
