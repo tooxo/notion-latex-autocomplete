@@ -6,6 +6,6 @@ jobs:
     steps:
       - uses: actions/setup-node@v4
       - run: npm install --global web-ext
-      - run: ls
+      - run: ls -la
       - run: pwd
       - run: web-ext build
