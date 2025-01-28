@@ -20,14 +20,14 @@ for nor in normals:
     flea.sort()
     print(flea)
 
-    f.write("const " + nor + "= " + json.dumps(flea) + ";\n")
+    f.write("const " + nor + " = " + json.dumps(flea) + ";\n")
 
 env = json.load(open("input/environment", "r"))
 env.sort()
 p = []
 for e in env:
     p.append(
-        "begin{"+e+"}$$\end{"+e+"}"
+        "begin{"+e+"}"+("{$$}" if 'array' in e else '')+"$$\\end{"+e+"}"
     )
 f.write("const environment = " + json.dumps(p) + ";\n")
 f.write("\n")

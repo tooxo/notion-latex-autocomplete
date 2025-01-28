@@ -28,10 +28,7 @@ function findOverlayContainer() {
 
         return
     }
-    setTimeout(
-        findOverlayContainer,
-        100
-    )
+    setTimeout(findOverlayContainer, 100)
 }
 
 findOverlayContainer()
@@ -42,10 +39,11 @@ function callback(mutationList, observer) {
             console.log('A child node has been added:', mutation.addedNodes);
             // You can also access the added nodes like this:
             mutation.addedNodes.forEach(node => {
-                console.log('Added node:', node);
 
                 let elements = node.querySelectorAll('div[role="dialog"] > div > .notranslate');
                 if (elements.length > 0) {
+                    console.log('Added node:', node);
+
                     let element = elements[0];
                     state.jumpPoints = []
                     addCallbacks(element);
@@ -53,28 +51,47 @@ function callback(mutationList, observer) {
                 }
             });
         }
+        if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+            console.log('A child node has been removed:', mutation.removedNodes);
+            mutation.removedNodes.forEach(node => {
+                let elements = node.querySelectorAll('div[role="dialog"] > div > .notranslate');
+                if (elements.length > 0) {
+                    completionsDiv.style.display = 'none';
+                    state = new AutoCompleteState();
+                }
+            })
+        }
     }
 }
 
 function updatePositionCompletionList(target) {
+    console.log("update position completionList");
     let selection = window.getSelection();
+
     if (selection !== null) {
-        if (selection.focusNode instanceof Text) {
-            target = selection.focusNode.parentNode;
+        let fn = selection.focusNode;
+
+        if (fn instanceof Text) {
+            // if there is a "temp" node for rendering, we skip it
+            if (!selection.focusNode.nodeValue.startsWith("\\")) {
+                fn = selection.focusNode.previousSibling;
+                target = fn;
+
+            } else {
+                target = fn.parentNode;
+            }
         } else {
-            target = selection.focusNode;
+            target = fn;
         }
     } else {
-        console.log("selection was zero!");
         debugger;
     }
 
     if (target === null || target === undefined) {
-        if (state.active)
-            debugger;
-        else
-            return;
+        if (state.active) debugger; else return;
     }
+
+    console.log("update position", selection.focusNode, target, target.getBoundingClientRect().top + target.getBoundingClientRect().height + "px", target.getBoundingClientRect().left + "px", target.getBoundingClientRect().height + "px");
 
     completionsDiv.style.top = target.getBoundingClientRect().top + target.getBoundingClientRect().height + "px";
     completionsDiv.style.left = target.getBoundingClientRect().left + "px";
@@ -219,7 +236,7 @@ function updateCompletionList(target, updateLocation = true) {
     }
 
     lowPriorityCurrent.sort((a, b) => a.length - b.length)
-    state.currentlyFittingCompletions.push(lowPriorityCurrent)
+    state.currentlyFittingCompletions.push(...lowPriorityCurrent)
     state.currentlyFittingCompletions = state.currentlyFittingCompletions.flat()
 
     console.log(previousSelection)
@@ -247,27 +264,34 @@ function updateCompletionList(target, updateLocation = true) {
             while (katexString.includes("$$")) {
                 katexString = katexString.replace("$$", alphabet.shift());
             }
-
-            katex.render(
-                "\\" + katexString, p_elem, {
-                    throwOnError: true
-                }
-            );
-
-            let katex_elem = p_elem.getElementsByClassName("katex").item(0);
-            let wanted_height = katex_elem.scrollHeight;
-            let height = katex_elem.getBoundingClientRect().height;
-
-            // prevent overflow by scaling down
-            if (Math.abs(wanted_height - height) > 1) {
-                // too far apart, scale
-
-                let scale = height / wanted_height;
-                katex_elem.setAttribute("style", "transform: scale(" + scale + ");");
+            if (delimiter_sizing.includes(katexString)) {
+                katexString += "["
             }
-            console.log("" + i + "-height=" + height);
+
+            try {
+                katex.render("\\" + katexString, p_elem, {
+                    throwOnError: true
+                });
+
+                let katex_elem = p_elem.getElementsByClassName("katex").item(0);
+                let wanted_height = katex_elem.scrollHeight;
+                let height = katex_elem.getBoundingClientRect().height;
+
+                // prevent overflow by scaling down
+                if (Math.abs(wanted_height - height) > 1) {
+                    // too far apart, scale
+
+                    let scale = height / wanted_height;
+                    katex_elem.setAttribute("style", "transform: scale(" + scale + ");");
+                }
+                console.log("" + i + "-height=" + height);
+            } catch (err) {
+                console.log("error while rendering", err);
+                p_elem.appendChild(document.createElement("span"));
+            }
         } else {
             console.log("katex is undefined!")
+            p_elem.appendChild(document.createElement("span"));
         }
         p_elem.appendChild(span_elem);
 
@@ -286,8 +310,7 @@ function updateCompletionList(target, updateLocation = true) {
         completionsDiv.style.display = "block"
     }
 
-    if (updateLocation)
-        updatePositionCompletionList(target)
+    if (updateLocation) updatePositionCompletionList(target)
 }
 
 
@@ -409,6 +432,10 @@ function addCallbacks(element) {
         state = new AutoCompleteState();
     })
 
+    element.addEventListener('focusout', (e) => {
+        console.log("focusout!")
+    })
+
     let parkingLot;
     let mutationObserver = new MutationObserver((mutations, observer) => {
             for (let mutation of mutations) {
@@ -494,3 +521,5 @@ function addCallbacks(element) {
     document.addEventListener('resize', () => updatePositionCompletionList(element));
     document.addEventListener('click', () => updatePositionCompletionList(element));
 }
+
+console.log("autocomplete enabled.")
