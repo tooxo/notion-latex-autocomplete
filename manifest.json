@@ -1,7 +1,7 @@
 {
   "name": "LaTeX Autocomplete for Notion",
   "author": "Till Schulte",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "manifest_version": 3,
   "minimum_chrome_version": "120",
   "description": "Adds autocompletion to notion equation fields.",
@@ -29,5 +29,10 @@
   "host_permissions": [
     "https://notion.so/*",
     "https://www.notion.so/*"
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "not_lat_auto@tillschulte.de"
+    }
+  }
 }

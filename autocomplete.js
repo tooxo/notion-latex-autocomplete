@@ -1,6 +1,11 @@
 let completionsDiv = document.createElement("div")
 completionsDiv.id = "completions";
 
+let completion_ranking = new Map()
+for (let possibility of all_flattened) {
+    completion_ranking.set(possibility, 0)
+}
+
 class AutoCompleteState {
     active = false;
     allCompletions = all_flattened
@@ -185,6 +190,10 @@ function setCursorPositionAfter(target) {
     }
 }
 
+function sort_value(ref, x) {
+    return (x.startsWith(ref) + 0.5) * (completion_ranking.get(x) + 1)
+}
+
 function updateCompletionList(target, updateLocation = true) {
     let previousSelection = state.currentlyFittingCompletions[state.currentlySelected]
 
@@ -235,7 +244,9 @@ function updateCompletionList(target, updateLocation = true) {
         }
     }
 
-    lowPriorityCurrent.sort((a, b) => a.length - b.length)
+    console.log("pre_sort", lowPriorityCurrent, val)
+    lowPriorityCurrent.sort((a, b) => sort_value(state.partial, b) - sort_value(state.partial, a));
+    console.log("post_sort", lowPriorityCurrent)
     state.currentlyFittingCompletions.push(...lowPriorityCurrent)
     state.currentlyFittingCompletions = state.currentlyFittingCompletions.flat()
 
@@ -336,6 +347,7 @@ function acceptAutocompletion(target) {
     if (!state.lastCompletions.includes(selectedElement)) {
         state.lastCompletions.push(selectedElement)
     }
+    completion_ranking.set(selectedElement, completion_ranking.get(selectedElement) + 1);
 
     target.innerText = left.substring(0, left.length - state.partial.length) + selectedElement.replaceAll("$$", "") + right
     target.dispatchEvent(new InputEvent("input", {bubbles: true}))
