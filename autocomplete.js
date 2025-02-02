@@ -1,9 +1,21 @@
+let debug = true;
+
 let completionsDiv = document.createElement("div")
 completionsDiv.id = "completions";
 
 let completion_ranking = new Map()
 for (let possibility of all_flattened) {
     completion_ranking.set(possibility, 0)
+}
+
+class JumpPoint {
+    constructor(target, offset) {
+        this.target = target;
+        this.offset = offset;
+    }
+
+    target
+    offset
 }
 
 class AutoCompleteState {
@@ -56,7 +68,7 @@ function callback(mutationList, observer) {
                 }
             });
         }
-        if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+        if (!debug) if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
             console.log('A child node has been removed:', mutation.removedNodes);
             mutation.removedNodes.forEach(node => {
                 let elements = node.querySelectorAll('div[role="dialog"] > div > .notranslate');
@@ -102,36 +114,37 @@ function updatePositionCompletionList(target) {
     completionsDiv.style.left = target.getBoundingClientRect().left + "px";
 }
 
-function getCursorPosition() {
-    function jump(elem) {
-        if (!elem.parentNode.matches("div.notranslate")) {
-            elem = elem.parentNode;
-        }
-        return elem;
+function getLengthBefore(nodeCursor) {
+    function is_final(elem) {
+        if (!(elem instanceof Element)) return false;
+        return elem.matches("div.notranslate")
     }
 
-    let selection = window.getSelection();
-    if (!(selection.focusNode instanceof Text)) {
-        if (selection.focusNode === null || selection.focusNode === undefined) debugger
-        if (selection.focusNode.matches("div.notranslate")) return 0
-    }
-    let nd = jump(selection.focusNode).previousSibling;
+    let previousLength = 0;
 
-    let prev = 0;
-    while (nd != null) {
-        if (nd instanceof Text) {
-            prev += nd.nodeValue.length;
+    while (!is_final(nodeCursor)) {
+        if (nodeCursor.previousSibling !== null) {
+            nodeCursor = nodeCursor.previousSibling;
+
+            if (nodeCursor instanceof Text) {
+                previousLength += nodeCursor.nodeValue.length;
+            } else {
+                previousLength += nodeCursor.innerText.length
+            }
+        } else if (nodeCursor.parentNode !== null) {
+            nodeCursor = nodeCursor.parentNode;
         } else {
-            prev += nd.innerText.length
+            console.error("detached element");
+            break
         }
-        nd = nd.previousSibling;
     }
 
-    let pos = prev + selection.focusOffset;
+    return previousLength;
+}
 
-    console.log("pos=" + pos)
-
-    return pos;
+function getCursorPosition() {
+    let selection = window.getSelection();
+    return getLengthBefore(selection.focusNode) + selection.focusOffset;
 }
 
 function findElementBeforePosition(target, position) {
@@ -155,26 +168,43 @@ function findElementBeforePosition(target, position) {
 }
 
 function setCursorPosition(target, position) {
-    // here we set the pos
-    let pos = findElementBeforePosition(target, position);
-    let child = pos[0]
-    let offs = pos[1]
+    function elementLength(elem) {
+        if (elem instanceof Element) {
+            return elem.innerText.length;
+        } else if (elem instanceof Text) {
+            return elem.nodeValue.length;
+        } else {
+            debugger;
+            return 0;
+        }
+    }
+
+    let offs = position - getLengthBefore(target);
 
     let selection = window.getSelection();
     let range = selection.getRangeAt(0)
 
     if (offs !== 0) {
-        console.log("setting to ", child, "plus", position);
+        console.log("setting to ", target, "plus", offs);
 
-        if (child instanceof Text || true) {
-            range.setStart(child, position);
-        } else {
-            console.assert(child.childNodes.length === 1);
-            range.setStart(child.childNodes[0], position);
+        while (target instanceof Element) {
+            let current_length = 0;
+            for (let child of target.childNodes) {
+                if (current_length + elementLength(child) >= offs) {
+                    target = child;
+                    offs -= current_length;
+                    break;
+                } else {
+                    current_length += elementLength(child);
+                }
+            }
         }
+
+        console.log("setting to ", target, "plus", offs);
+        range.setStart(target, offs);
     } else {
-        console.log("setting after", child);
-        setCursorPositionAfter(child);
+        console.log("setting after", target);
+        setCursorPositionAfter(target);
     }
 }
 
@@ -244,13 +274,10 @@ function updateCompletionList(target, updateLocation = true) {
         }
     }
 
-    console.log("pre_sort", lowPriorityCurrent, val)
     lowPriorityCurrent.sort((a, b) => sort_value(state.partial, b) - sort_value(state.partial, a));
-    console.log("post_sort", lowPriorityCurrent)
     state.currentlyFittingCompletions.push(...lowPriorityCurrent)
     state.currentlyFittingCompletions = state.currentlyFittingCompletions.flat()
 
-    console.log(previousSelection)
     if (previousSelection !== undefined && state.currentlyFittingCompletions.slice(0, 5).includes(previousSelection)) {
         state.currentlySelected = state.currentlyFittingCompletions.indexOf(previousSelection)
     } else {
@@ -295,7 +322,6 @@ function updateCompletionList(target, updateLocation = true) {
                     let scale = height / wanted_height;
                     katex_elem.setAttribute("style", "transform: scale(" + scale + ");");
                 }
-                console.log("" + i + "-height=" + height);
             } catch (err) {
                 console.log("error while rendering", err);
                 p_elem.appendChild(document.createElement("span"));
@@ -355,7 +381,7 @@ function acceptAutocompletion(target) {
     let newJumpPoints = []
     for (let jumpPoint of jumpPoints) {
         let p = findElementBeforePosition(target, jumpPoint);
-        newJumpPoints.push(p[0])
+        newJumpPoints.push(new JumpPoint(p[0], jumpPoint));
     }
 
     state.jumpPoints = newJumpPoints.concat(state.jumpPoints)
@@ -374,7 +400,7 @@ function jumpToNextJumpPoint() {
 
     let jp = state.jumpPoints.shift();
     console.log("jumping to", jp)
-    setCursorPositionAfter(jp)
+    setCursorPosition(jp.target, jp.offset);
 
     return true
 }
@@ -435,13 +461,36 @@ function addCallbacks(element) {
         }
     })
 
+    function _length_changed(new_data, old_data) {
+        return new_data.length - old_data.length;
+    }
+
+    let _last_input = null
     element.addEventListener('input', (e) => {
-        updateCompletionList(e.target)
+        updateCompletionList(e.target);
+
+        let cursor_position = getCursorPosition();
+
+        if (_last_input !== null) {
+            let _l_ch = _length_changed(e.target.innerText, _last_input);
+
+            if (_l_ch !== 0) {
+                state.jumpPoints = state.jumpPoints.map((v) => {
+                    if (v.offset >= cursor_position) {
+                        return new JumpPoint(v.target, v.offset += _l_ch);
+                    }
+                    return v
+                })
+            }
+        }
+        _last_input = e.target.innerText;
     })
 
     element.addEventListener('blur', (e) => {
-        completionsDiv.style.display = "none";
-        state = new AutoCompleteState();
+        if (!debug) {
+            completionsDiv.style.display = "none";
+            state = new AutoCompleteState();
+        }
     })
 
     element.addEventListener('focusout', (e) => {
@@ -472,8 +521,6 @@ function addCallbacks(element) {
                     if (added.length !== removed.length) {
                         let i = 0;
 
-                        console.log("bb1", added.length - removed.length, added, removed)
-
                         for (; i < Math.min(removed.length); i++) {
                             if (added[i] === undefined) return
 
@@ -484,23 +531,23 @@ function addCallbacks(element) {
 
                         let jumpPointsToRemove = [];
                         for (let jp of state.jumpPoints) {
-                            if (added.includes(jp) || Array.from(element.childNodes).includes(jp)) {
+                            if (added.includes(jp.target) || Array.from(element.childNodes).includes(jp.target)) {
                                 continue;
                             }
 
-                            let oldIndex = removed.indexOf(jp);
+                            let oldIndex = removed.indexOf(jp.target);
                             if (oldIndex === -1) {
                                 jumpPointsToRemove.push(jp)
                                 continue
                             }
 
                             if (oldIndex < i) {
-                                state.jumpPoints[state.jumpPoints.indexOf(jp)] = added[oldIndex];
+                                state.jumpPoints[state.jumpPoints.indexOf(jp)] = new JumpPoint(added[oldIndex], jp.offset);
                             } else {
                                 if (added[oldIndex + added.length - removed.length] === undefined) {
                                     debugger
                                 }
-                                state.jumpPoints[state.jumpPoints.indexOf(jp)] = added[oldIndex + added.length - removed.length];
+                                state.jumpPoints[state.jumpPoints.indexOf(jp)] = new JumpPoint(added[oldIndex + added.length - removed.length], jp.offset);
                             }
                         }
 
@@ -510,18 +557,19 @@ function addCallbacks(element) {
                     } else {
                         console.log("removed")
                         for (let currentJumpPoint of state.jumpPoints) {
-                            if (added.includes(currentJumpPoint) || !removed.includes(currentJumpPoint)) {
+                            if (added.includes(currentJumpPoint.target) || !removed.includes(currentJumpPoint.target)) {
                                 continue
                             }
 
-                            let ind = removed.indexOf(currentJumpPoint)
+                            let ind = removed.indexOf(currentJumpPoint.target)
                             if (ind === -1) debugger
 
-                            state.jumpPoints[state.jumpPoints.indexOf(currentJumpPoint)] = added[ind];
+                            state.jumpPoints[state.jumpPoints.indexOf(currentJumpPoint)] = new JumpPoint(added[ind], currentJumpPoint.offset);
 
-                            console.log("child", added.includes(currentJumpPoint))
                         }
                     }
+
+                    console.log("jump points changed", state.jumpPoints);
                 }
             }
         }
