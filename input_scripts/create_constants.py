@@ -16,6 +16,7 @@ for nor in normals:
         n = n.replace("\\", "")
         n = n.replace("\\", "")
         n = re.sub(r"{}", "{$$}", n)
+        n = n.replace(r"[]", "[$$]",)
         flea.append(n)
     flea.sort()
     print(flea)

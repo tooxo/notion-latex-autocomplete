@@ -13,6 +13,7 @@
       ],
       "js": [
         "katex.min.js",
+        "prettier-plugin-latex.js",
         "constants.js",
         "autocomplete.js"
       ],
