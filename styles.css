@@ -47,3 +47,7 @@
     }
 
 }
+
+div[role="dialog"] {
+    width: 500px !important;
+}
