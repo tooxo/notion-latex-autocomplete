@@ -7,3 +7,4 @@
   * If Suggestions are shown: Accept Highlighted Suggestion
   * Else: Jump to the next bracket
 * `ArrowUp` / `ArrowDown`: Switch between suggestions 
+* `Ctrl+Alt+K`: Auto-Format equation
