@@ -406,7 +406,9 @@ function jumpToNextJumpPoint() {
 }
 
 function addCallbacks(element) {
+    let autoFormatEnabled = true;
     element.addEventListener('keydown', (e) => {
+        autoFormatEnabled = autoFormatEnabled || e.key !== "k";
         switch (e.key) {
             case '\\':
                 state.active = true
@@ -457,6 +459,29 @@ function addCallbacks(element) {
                     state.currentlySelected = Math.min(4, state.currentlyFittingCompletions.length - 1)
                 }
                 updateCompletionList(e.target, false)
+                break
+            case 'k':
+                if (e.altKey && e.ctrlKey && !e.shiftKey && autoFormatEnabled) {
+                    console.log(element.innerText);
+                    (async () => {
+                            let response = await prettier_plugin_latex.printPrettier(
+                                element.innerText,
+                                {
+                                    tabWidth: 2,
+                                    useTabs: false,
+                                    printWidth: 40
+                                }
+                            );
+                            console.log(element.innerText, response);
+                            element.innerText = response;
+                            element.dispatchEvent(new InputEvent("input", {bubbles: true}));
+
+                            return response;
+                        }
+                    )();
+                    autoFormatEnabled = false;
+                    e.preventDefault();
+                }
                 break
         }
     })
