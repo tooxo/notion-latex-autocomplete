@@ -1,4 +1,8 @@
-let debug = true;
+import {all_flattened, delimiter_sizing} from "./constants";
+import {printPrettier} from "prettier-plugin-latex/standalone";
+import katex from "katex";
+
+let debug = false;
 
 let completionsDiv = document.createElement("div")
 completionsDiv.id = "completions";
@@ -9,13 +13,13 @@ for (let possibility of all_flattened) {
 }
 
 class JumpPoint {
-    constructor(target, offset) {
+    constructor(target: Node, offset: number) {
         this.target = target;
         this.offset = offset;
     }
 
-    target
-    offset
+    target: Node;
+    offset: number;
 }
 
 class AutoCompleteState {
@@ -23,12 +27,12 @@ class AutoCompleteState {
     allCompletions = all_flattened
 
     partial = ""
-    currentlyFittingCompletions = []
+    currentlyFittingCompletions: string[] = []
     currentlySelected = 0
 
-    jumpPoints = []
+    jumpPoints: JumpPoint[] = []
 
-    lastCompletions = []
+    lastCompletions: string[] = []
 }
 
 let state = new AutoCompleteState();
@@ -50,18 +54,18 @@ function findOverlayContainer() {
 
 findOverlayContainer()
 
-function callback(mutationList, observer) {
+
+function callback(mutationList: MutationRecord[], _observer: MutationObserver) {
     for (let mutation of mutationList) {
         if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
             console.log('A child node has been added:', mutation.addedNodes);
-            // You can also access the added nodes like this:
-            mutation.addedNodes.forEach(node => {
 
-                let elements = node.querySelectorAll('div[role="dialog"] > div > .notranslate');
+            mutation.addedNodes.forEach(node => {
+                let elements = (<Element>node).querySelectorAll('div[role="dialog"] > div > .notranslate');
                 if (elements.length > 0) {
                     console.log('Added node:', node);
 
-                    let element = elements[0];
+                    let element = <HTMLElement>elements[0];
                     state.jumpPoints = []
                     addCallbacks(element);
                     updateCompletionList(element);
@@ -71,7 +75,7 @@ function callback(mutationList, observer) {
         if (!debug) if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
             console.log('A child node has been removed:', mutation.removedNodes);
             mutation.removedNodes.forEach(node => {
-                let elements = node.querySelectorAll('div[role="dialog"] > div > .notranslate');
+                let elements = (<Element>node).querySelectorAll('div[role="dialog"] > div > .notranslate');
                 if (elements.length > 0) {
                     completionsDiv.style.display = 'none';
                     state = new AutoCompleteState();
@@ -81,31 +85,29 @@ function callback(mutationList, observer) {
     }
 }
 
-function updatePositionCompletionList(target) {
+function updatePositionCompletionList() {
     console.log("update position completionList");
+    let target: Element | null;
     let selection = window.getSelection();
-
-    if (selection !== null) {
-        let fn = selection.focusNode;
-
-        if (fn instanceof Text) {
-            // if there is a "temp" node for rendering, we skip it
-            if (!selection.focusNode.nodeValue.startsWith("\\")) {
-                fn = selection.focusNode.previousSibling;
-                target = fn;
-
-            } else {
-                target = fn.parentNode;
-            }
-        } else {
-            target = fn;
-        }
-    } else {
+    if (selection === null || selection.focusNode === null) {
         debugger;
+        return;
     }
 
-    if (target === null || target === undefined) {
-        if (state.active) debugger; else return;
+    let fn = selection.focusNode;
+    if (fn instanceof Text) {
+        // if there is a "temp" node for rendering, we skip it
+        if (!fn.nodeValue!.startsWith("\\")) {
+            target = <Element | null>fn.previousSibling;
+        } else {
+            target = <Element | null>fn.parentNode;
+        }
+    } else {
+        target = <Element | null>fn;
+    }
+    if (target === null) {
+        if (state.active) debugger;
+        return;
     }
 
     console.log("update position", selection.focusNode, target, target.getBoundingClientRect().top + target.getBoundingClientRect().height + "px", target.getBoundingClientRect().left + "px", target.getBoundingClientRect().height + "px");
@@ -114,8 +116,8 @@ function updatePositionCompletionList(target) {
     completionsDiv.style.left = target.getBoundingClientRect().left + "px";
 }
 
-function getLengthBefore(nodeCursor) {
-    function is_final(elem) {
+function getLengthBefore(nodeCursor: Node | null) {
+    function is_final(elem: Node | null) {
         if (!(elem instanceof Element)) return false;
         return elem.matches("div.notranslate")
     }
@@ -123,13 +125,16 @@ function getLengthBefore(nodeCursor) {
     let previousLength = 0;
 
     while (!is_final(nodeCursor)) {
+        nodeCursor = <Node>nodeCursor;
         if (nodeCursor.previousSibling !== null) {
             nodeCursor = nodeCursor.previousSibling;
 
             if (nodeCursor instanceof Text) {
-                previousLength += nodeCursor.nodeValue.length;
-            } else {
+                previousLength += nodeCursor.nodeValue!.length;
+            } else if (nodeCursor instanceof HTMLElement) {
                 previousLength += nodeCursor.innerText.length
+            } else {
+                debugger;
             }
         } else if (nodeCursor.parentNode !== null) {
             nodeCursor = nodeCursor.parentNode;
@@ -144,54 +149,57 @@ function getLengthBefore(nodeCursor) {
 
 function getCursorPosition() {
     let selection = window.getSelection();
-    return getLengthBefore(selection.focusNode) + selection.focusOffset;
+    console.assert(selection !== null);
+    return getLengthBefore(selection!.focusNode) + selection!.focusOffset;
 }
 
-function findElementBeforePosition(target, position) {
+function findElementBeforePosition(target: Node, position: number) {
     for (let child of target.childNodes) {
         let length;
         if (child instanceof Text) {
             length = child.data.length;
-        } else {
+        } else if (child instanceof HTMLElement) {
             length = child.innerText.length;
+        } else {
+            length = 0;
+            debugger;
         }
         if (length < position) {
             position -= length;
         } else {
-            if (length > position) {
-                return [child, position]
-            } else {
-                return [child, 0]
-            }
+            return child;
         }
     }
+
+    return target;
 }
 
-function setCursorPosition(target, position) {
-    function elementLength(elem) {
-        if (elem instanceof Element) {
+function setCursorPosition(jp: JumpPoint) {
+    function elementLength(elem: Node) {
+        if (elem instanceof HTMLElement) {
             return elem.innerText.length;
         } else if (elem instanceof Text) {
-            return elem.nodeValue.length;
+            return elem.nodeValue!.length;
         } else {
             debugger;
             return 0;
         }
     }
 
-    let offs = position - getLengthBefore(target);
+    let offs = jp.offset - getLengthBefore(jp.target);
 
     let selection = window.getSelection();
-    let range = selection.getRangeAt(0)
+    console.assert(selection !== null);
+    let range = selection!.getRangeAt(0)
 
     if (offs !== 0) {
-        console.log("setting to ", target, "plus", offs);
+        console.log("setting to ", jp.target, "plus", offs);
 
-        while (target instanceof Element) {
+        while (jp.target instanceof Element) {
             let current_length = 0;
-            for (let child of target.childNodes) {
+            for (let child of jp.target.childNodes) {
                 if (current_length + elementLength(child) >= offs) {
-                    target = child;
+                    jp.target = child;
                     offs -= current_length;
                     break;
                 } else {
@@ -200,17 +208,17 @@ function setCursorPosition(target, position) {
             }
         }
 
-        console.log("setting to ", target, "plus", offs);
-        range.setStart(target, offs);
+        console.log("setting to ", jp.target, "plus", offs);
+        range.setStart(jp.target, offs);
     } else {
-        console.log("setting after", target);
-        setCursorPositionAfter(target);
+        console.log("setting after", jp.target);
+        setCursorPositionAfter(jp.target);
     }
 }
 
-function setCursorPositionAfter(target) {
+function setCursorPositionAfter(target: Node) {
     const selection = window.getSelection();
-    let range = selection.getRangeAt(0);
+    let range = selection!.getRangeAt(0);
 
     if (target instanceof Text || true) {
         range.setStartAfter(target);
@@ -220,11 +228,15 @@ function setCursorPositionAfter(target) {
     }
 }
 
-function sort_value(ref, x) {
-    return (x.startsWith(ref) + 0.5) * (completion_ranking.get(x) + 1)
+function boolean_to_number(b: boolean | null) {
+    return b ? 1 : 0;
 }
 
-function updateCompletionList(target, updateLocation = true) {
+function sort_value(ref: string, x: string) {
+    return (boolean_to_number(x.startsWith(ref)) + 0.5) * (completion_ranking.get(x) + 1)
+}
+
+function updateCompletionList(target: HTMLElement, updateLocation = true) {
     let previousSelection = state.currentlyFittingCompletions[state.currentlySelected]
 
     state.currentlyFittingCompletions = []
@@ -259,7 +271,7 @@ function updateCompletionList(target, updateLocation = true) {
         }
     }
 
-    let lowPriorityCurrent = []
+    let lowPriorityCurrent: string[] = []
     for (let completion of state.allCompletions) {
         if (completion.replaceAll("$$", "").includes(state.partial) && !lowPriorityCurrent.includes(completion) && !state.currentlyFittingCompletions.includes(completion)) {
             lowPriorityCurrent.push(completion)
@@ -296,40 +308,36 @@ function updateCompletionList(target, updateLocation = true) {
         let span_elem = document.createElement("span");
         span_elem.classList.add("name");
 
-        if (katex !== undefined) {
-            let katexString = state.currentlyFittingCompletions[i];
-            let alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
-            while (katexString.includes("$$")) {
-                katexString = katexString.replace("$$", alphabet.shift());
+        let katexString = state.currentlyFittingCompletions[i];
+        let alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
+        while (katexString.includes("$$")) {
+            katexString = katexString.replace("$$", alphabet.shift()!);
+        }
+        if (delimiter_sizing.includes(katexString)) {
+            katexString += "["
+        }
+
+        try {
+            katex.render("\\" + katexString, p_elem, {
+                throwOnError: true
+            });
+
+            let katex_elem = p_elem.getElementsByClassName("katex").item(0)!;
+            let wanted_height = katex_elem.scrollHeight;
+            let height = katex_elem.getBoundingClientRect().height;
+
+            // prevent overflow by scaling down
+            if (Math.abs(wanted_height - height) > 1) {
+                // too far apart, scale
+
+                let scale = height / wanted_height;
+                katex_elem.setAttribute("style", "transform: scale(" + scale + ");");
             }
-            if (delimiter_sizing.includes(katexString)) {
-                katexString += "["
-            }
-
-            try {
-                katex.render("\\" + katexString, p_elem, {
-                    throwOnError: true
-                });
-
-                let katex_elem = p_elem.getElementsByClassName("katex").item(0);
-                let wanted_height = katex_elem.scrollHeight;
-                let height = katex_elem.getBoundingClientRect().height;
-
-                // prevent overflow by scaling down
-                if (Math.abs(wanted_height - height) > 1) {
-                    // too far apart, scale
-
-                    let scale = height / wanted_height;
-                    katex_elem.setAttribute("style", "transform: scale(" + scale + ");");
-                }
-            } catch (err) {
-                console.log("error while rendering", err);
-                p_elem.appendChild(document.createElement("span"));
-            }
-        } else {
-            console.log("katex is undefined!")
+        } catch (err) {
+            console.log("error while rendering", err);
             p_elem.appendChild(document.createElement("span"));
         }
+
         p_elem.appendChild(span_elem);
 
         span_elem.innerHTML = state.currentlyFittingCompletions[i].replaceAll("$$", "")
@@ -347,11 +355,11 @@ function updateCompletionList(target, updateLocation = true) {
         completionsDiv.style.display = "block"
     }
 
-    if (updateLocation) updatePositionCompletionList(target)
+    if (updateLocation) updatePositionCompletionList()
 }
 
 
-function acceptAutocompletion(target) {
+function acceptAutocompletion(target: HTMLElement) {
     let value = target.innerText;
 
     let currentPos = getCursorPosition();
@@ -361,7 +369,7 @@ function acceptAutocompletion(target) {
 
     let selectedElement = state.currentlyFittingCompletions[state.currentlySelected];
 
-    let jumpPoints = []
+    let jumpPoints: number[] = []
     for (let part of selectedElement.split("$$")) {
         if (jumpPoints.length === 0) {
             jumpPoints.push(left.length - state.partial.length + part.length)
@@ -381,14 +389,14 @@ function acceptAutocompletion(target) {
     let newJumpPoints = []
     for (let jumpPoint of jumpPoints) {
         let p = findElementBeforePosition(target, jumpPoint);
-        newJumpPoints.push(new JumpPoint(p[0], jumpPoint));
+        newJumpPoints.push(new JumpPoint(p, jumpPoint));
     }
 
     state.jumpPoints = newJumpPoints.concat(state.jumpPoints)
     console.log("cjp", state.jumpPoints)
     completionsDiv.style.display = "none"
 
-    console.assert(jumpToNextJumpPoint() === true)
+    console.assert(jumpToNextJumpPoint())
 
     state.active = false
 }
@@ -398,16 +406,18 @@ function jumpToNextJumpPoint() {
         return false;
     }
 
-    let jp = state.jumpPoints.shift();
+    let jp = state.jumpPoints.shift()!;
     console.log("jumping to", jp)
-    setCursorPosition(jp.target, jp.offset);
+    setCursorPosition(jp);
 
-    return true
+    return true;
 }
 
-function addCallbacks(element) {
+function addCallbacks(element: HTMLElement) {
     let autoFormatEnabled = true;
-    element.addEventListener('keydown', (e) => {
+    element.addEventListener('keydown', (_e: Event) => {
+        let e = <KeyboardEvent>_e;
+        let eventTarget = <HTMLElement>_e.target!;
         autoFormatEnabled = autoFormatEnabled || e.key !== "k";
         switch (e.key) {
             case '\\':
@@ -415,7 +425,7 @@ function addCallbacks(element) {
                 console.log("+ complete active")
                 break
             case "Escape":
-                state.JumpPoints = []
+                state.jumpPoints = []
 
             // noinspection FallThroughInSwitchStatementJS
             case " ":
@@ -431,8 +441,7 @@ function addCallbacks(element) {
                     if (state.currentlyFittingCompletions.length === 0 || !state.active) {
                         return
                     }
-
-                    acceptAutocompletion(e.target)
+                    acceptAutocompletion(eventTarget)
                 } else {
                     console.log("not active and no jumpp")
                     break
@@ -446,7 +455,7 @@ function addCallbacks(element) {
 
                 e.preventDefault()
                 state.currentlySelected++;
-                updateCompletionList(e.target, false)
+                updateCompletionList(eventTarget, false)
                 break
             case "ArrowUp":
                 if (!state.active) {
@@ -458,13 +467,13 @@ function addCallbacks(element) {
                 if (state.currentlySelected < 0) {
                     state.currentlySelected = Math.min(4, state.currentlyFittingCompletions.length - 1)
                 }
-                updateCompletionList(e.target, false)
+                updateCompletionList(eventTarget, false)
                 break
             case 'k':
                 if (e.altKey && e.ctrlKey && !e.shiftKey && autoFormatEnabled) {
                     console.log(element.innerText);
                     (async () => {
-                            let response = await prettier_plugin_latex.printPrettier(
+                            let response = await printPrettier(
                                 element.innerText,
                                 {
                                     tabWidth: 2,
@@ -486,29 +495,29 @@ function addCallbacks(element) {
         }
     })
 
-    function _length_changed(new_data, old_data) {
+    function _length_difference(new_data: string, old_data: string) {
         return new_data.length - old_data.length;
     }
 
-    let _last_input = null
+    let _last_input: string | null = null
     element.addEventListener('input', (e) => {
-        updateCompletionList(e.target);
+        updateCompletionList(<HTMLElement>e.target!);
 
         let cursor_position = getCursorPosition();
 
         if (_last_input !== null) {
-            let _l_ch = _length_changed(e.target.innerText, _last_input);
+            let _l_diff = _length_difference((<HTMLElement>e.target!).innerText, _last_input);
 
-            if (_l_ch !== 0) {
+            if (_l_diff !== 0) {
                 state.jumpPoints = state.jumpPoints.map((v) => {
                     if (v.offset >= cursor_position) {
-                        return new JumpPoint(v.target, v.offset += _l_ch);
+                        return new JumpPoint(v.target, v.offset += _l_diff);
                     }
                     return v
                 })
             }
         }
-        _last_input = e.target.innerText;
+        _last_input = (<HTMLElement>e.target!).innerText;
     })
 
     element.addEventListener('blur', (e) => {
@@ -522,12 +531,13 @@ function addCallbacks(element) {
         console.log("focusout!")
     })
 
-    let parkingLot;
-    let mutationObserver = new MutationObserver((mutations, observer) => {
+    // noinspection JSMismatchedCollectionQueryUpdate
+    let parkingLot: HTMLElement[];
+    let mutationObserver = new MutationObserver((mutations, _observer) => {
             for (let mutation of mutations) {
                 if (mutation.type === 'childList') {
-                    let added = Array.from(mutation.addedNodes);
-                    let removed = Array.from(mutation.removedNodes);
+                    let added = <HTMLElement[]>Array.from(mutation.addedNodes);
+                    let removed = <HTMLElement[]>Array.from(mutation.removedNodes);
 
                     if (added.length > 0) {
                         if (added[added.length - 1].innerText === "") {
@@ -555,12 +565,13 @@ function addCallbacks(element) {
                         }
 
                         let jumpPointsToRemove = [];
+
                         for (let jp of state.jumpPoints) {
-                            if (added.includes(jp.target) || Array.from(element.childNodes).includes(jp.target)) {
+                            if ((<Node[]>added).includes(jp.target) || (<Node[]>Array.from(element.childNodes)).includes(jp.target)) {
                                 continue;
                             }
 
-                            let oldIndex = removed.indexOf(jp.target);
+                            let oldIndex = (<Node[]>removed).indexOf(jp.target);
                             if (oldIndex === -1) {
                                 jumpPointsToRemove.push(jp)
                                 continue
@@ -582,11 +593,11 @@ function addCallbacks(element) {
                     } else {
                         console.log("removed")
                         for (let currentJumpPoint of state.jumpPoints) {
-                            if (added.includes(currentJumpPoint.target) || !removed.includes(currentJumpPoint.target)) {
+                            if ((<Node[]>added).includes(currentJumpPoint.target) || !(<Node[]>removed).includes(currentJumpPoint.target)) {
                                 continue
                             }
 
-                            let ind = removed.indexOf(currentJumpPoint.target)
+                            let ind = (<Node[]>removed).indexOf(currentJumpPoint.target)
                             if (ind === -1) debugger
 
                             state.jumpPoints[state.jumpPoints.indexOf(currentJumpPoint)] = new JumpPoint(added[ind], currentJumpPoint.offset);
@@ -602,9 +613,9 @@ function addCallbacks(element) {
 
     mutationObserver.observe(element, {childList: true});
 
-    document.addEventListener('scroll', () => updatePositionCompletionList(element));
-    document.addEventListener('resize', () => updatePositionCompletionList(element));
-    document.addEventListener('click', () => updatePositionCompletionList(element));
+    document.addEventListener('scroll', () => updatePositionCompletionList());
+    document.addEventListener('resize', () => updatePositionCompletionList());
+    document.addEventListener('click', () => updatePositionCompletionList());
 }
 
 console.log("autocomplete enabled.")

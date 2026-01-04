@@ -1,0 +1,19 @@
+{
+  "name": "notion-latex-autocomplete",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "esbuild src/*.ts src/*.json src/options/* src/*.css --bundle --loader:.json=copy --loader:.html=copy --loader:.js=copy --loader:.css=copy --outdir=dist/"
+  },
+  "devDependencies": {
+    "@types/webextension-polyfill": "^0.12.4",
+    "esbuild": "0.27.1",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "katex": "^0.16.27",
+    "prettier-plugin-latex": "^2.0.1",
+    "webextension-polyfill": "^0.12.0"
+  }
+}
