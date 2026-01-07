@@ -1,0 +1,17 @@
+{
+  "version": {
+    "license": "GPL-3.0-only"
+  },
+  "categories": {
+    "firefox": [
+      "other"
+    ]
+  },
+  "summary": {
+    "en-US": "Adds autocompletion to notion equation fields."
+  },
+  "requires_payment": false,
+  "homepage": {
+    "en-US": "https://github.com/tooxo/notion-latex-autocomplete"
+  }
+}
