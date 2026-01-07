@@ -4,12 +4,15 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "build": "esbuild src/*.ts src/*.json src/options/* src/*.css --bundle --loader:.json=copy --loader:.html=copy --loader:.js=copy --loader:.css=copy --outdir=dist/"
+    "build": "esbuild src/*.ts src/*.json src/options/* src/*.css --bundle --sourcemap=inline --loader:.json=copy --loader:.html=copy --loader:.js=copy --loader:.css=copy --outdir=dist/"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/webextension-polyfill": "^0.12.4",
     "esbuild": "0.27.1",
-    "typescript": "^5.9.3"
+    "eslint": "^9.39.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.52.0"
   },
   "dependencies": {
     "katex": "^0.16.27",
