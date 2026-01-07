@@ -14,4 +14,4 @@ jobs:
           prerelease: true
           title: "Development Build"
           files: |
-            web-ext-artifacts/*
+            dist/artifacts/*
