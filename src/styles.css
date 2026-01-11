@@ -51,3 +51,19 @@
 div[role="dialog"] {
     width: 600px !important;
 }
+
+span.auto-completion-jump-cursor::after {
+    content: "";
+
+    background-color: red;
+    display: inline-block;
+    width: 2px;
+    height: 1rem;
+    margin-bottom: -0.25rem;
+
+    animation: opacity_breathe 1s infinite;
+}
+
+@keyframes opacity_breathe {
+    50% {opacity: 0.1;}
+}

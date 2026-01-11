@@ -240,6 +240,13 @@ class AttachedEquationField {
                         console.log("jump points changed", this.state.jumpPoints);
                     }
                 }
+
+                // reintroduce the cursors
+                for (const jumpPoint of this.state.jumpPoints) {
+                    if (jumpPoint.target instanceof HTMLElement) {
+                        jumpPoint.target.classList.add("auto-completion-jump-cursor");
+                    }
+                }
             }
         )
 
@@ -434,6 +441,10 @@ class AttachedEquationField {
         console.log("jumping to", jp)
         setCursorPosition(jp.target, jp.offset);
 
+        if (jp.target instanceof HTMLElement) {
+            jp.target.classList.remove("auto-completion-jump-cursor");
+        }
+
         return true;
     }
 
@@ -467,6 +478,10 @@ class AttachedEquationField {
         const newJumpPoints = []
         for (const jumpPoint of jumpPoints) {
             const p = findElementBeforePosition(target, jumpPoint);
+            if (p instanceof HTMLElement) {
+                p.classList.add("auto-completion-jump-cursor");
+            }
+
             newJumpPoints.push(new JumpPoint(p, jumpPoint));
         }
 

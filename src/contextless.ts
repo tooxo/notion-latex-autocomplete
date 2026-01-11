@@ -15,9 +15,8 @@ function getLengthBefore(nodeCursor: Node | null) {
     let previousLength = 0;
 
     while (!is_final(nodeCursor)) {
-        nodeCursor = <Node>nodeCursor;
-        if (nodeCursor.previousSibling !== null) {
-            nodeCursor = nodeCursor.previousSibling;
+        if (nodeCursor!.previousSibling !== null) {
+            nodeCursor = nodeCursor!.previousSibling;
 
             if (nodeCursor instanceof Text) {
                 previousLength += nodeCursor.nodeValue!.length;
@@ -26,8 +25,8 @@ function getLengthBefore(nodeCursor: Node | null) {
             } else {
                 debugger;
             }
-        } else if (nodeCursor.parentNode !== null) {
-            nodeCursor = nodeCursor.parentNode;
+        } else if (nodeCursor!.parentNode !== null) {
+            nodeCursor = nodeCursor!.parentNode;
         } else {
             console.error("detached element");
             break
@@ -38,7 +37,7 @@ function getLengthBefore(nodeCursor: Node | null) {
 }
 
 export function getCursorPosition() {
-    let selection = window.getSelection();
+    const selection = window.getSelection();
     console.assert(selection !== null);
     return getLengthBefore(selection!.focusNode) + selection!.focusOffset;
 }
@@ -57,16 +56,16 @@ export function setCursorPosition(target: Node, offset: number) {
 
     let offs = offset - getLengthBefore(target);
 
-    let selection = window.getSelection();
+    const selection = window.getSelection();
     console.assert(selection !== null);
-    let range = selection!.getRangeAt(0)
+    const range = selection!.getRangeAt(0)
 
     if (offs !== 0) {
         console.log("setting to ", target, "plus", offs);
 
         while (target instanceof Element) {
             let current_length = 0;
-            for (let child of target.childNodes) {
+            for (const child of target.childNodes) {
                 if (current_length + elementLength(child) >= offs) {
                     target = child;
                     offs -= current_length;
@@ -77,7 +76,7 @@ export function setCursorPosition(target: Node, offset: number) {
             }
         }
 
-        console.log("setting to ", target, "plus", offs);
+        console.log("setting to ", target, "plus", offs, elementLength(target));
         range.setStart(target, offs);
     } else {
         console.log("setting after", target);
@@ -87,18 +86,13 @@ export function setCursorPosition(target: Node, offset: number) {
 
 function setCursorPositionAfter(target: Node) {
     const selection = window.getSelection();
-    let range = selection!.getRangeAt(0);
+    const range = selection!.getRangeAt(0);
 
-    if (target instanceof Text || true) {
-        range.setStartAfter(target);
-    } else {
-        console.assert(target.childNodes.length === 1);
-        range.setStartAfter(target.childNodes[0]);
-    }
+    range.setStartAfter(target);
 }
 
-export function findElementBeforePosition(target: Node, position: number) {
-    for (let child of target.childNodes) {
+export function findElementBeforePosition(target: Node, position: number): Node {
+    for (const child of target.childNodes) {
         let length;
         if (child instanceof Text) {
             length = child.data.length;

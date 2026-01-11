@@ -4,10 +4,10 @@
 
 * **Firefox**: https://addons.mozilla.org/en-US/firefox/addon/notion-latex-autocomplete/
 * **Chrome, Edge, Brave, Vivaldi, etc.**: 
-  1. `npm run build` in this repository
+  1. download from https://github.com/tooxo/notion-latex-autocomplete/releases/tag/latest and unpack
   2. go to chrome://extensions/ (similar for others than chrome)
   3. enable "Developer Mode"
-  4. "Load unpacked" dist/manifest.json
+  4. "Load unpacked" <unpacked folder>/manifest.json
 # Keybinds
 
 * `\`: Open Suggestions Menu
