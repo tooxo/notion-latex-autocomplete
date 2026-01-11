@@ -1,7 +1,7 @@
 {
   "name": "LaTeX Autocomplete for Notion",
   "author": "Till Schulte",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "manifest_version": 3,
   "minimum_chrome_version": "120",
   "description": "Adds autocompletion to notion equation fields.",
