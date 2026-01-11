@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/cezaraugusto/chrome-extension-manifest-json-schema/refs/heads/main/manifest/manifest.schema.v3.json",
   "name": "LaTeX Autocomplete for Notion",
   "author": "Till Schulte",
   "version": "2.2.0",

@@ -55,9 +55,9 @@ div[role="dialog"] {
 span.auto-completion-jump-cursor::after {
     content: "";
 
-    background-color: red;
+    background-color: #2783de;
     display: inline-block;
-    width: 2px;
+    width: 3px;
     height: 1rem;
     margin-bottom: -0.25rem;
 

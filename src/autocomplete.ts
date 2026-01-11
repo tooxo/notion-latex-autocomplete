@@ -1,5 +1,5 @@
 "use strict"
-import {all_flattened, delimiter_sizing} from "./constants";
+import {all_flattened, color, delimiter_sizing} from "./constants";
 import {findElementBeforePosition, getCursorPosition, setCursorPosition, sort_value} from "./contextless"
 // @ts-expect-error aaa
 import {printPrettier} from "prettier-plugin-latex/standalone";
@@ -352,8 +352,18 @@ class AttachedEquationField {
 
             let katexString = this.state.currentlyFittingCompletions[i];
             const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
+            const colours = ["#ecec93", "#eb5757", "#ecec93"];
+            let numberOfInserts = katexString.split("$$").length - 1;
             while (katexString.includes("$$")) {
-                katexString = katexString.replace("$$", alphabet.shift()!);
+                let replacement;
+                if (numberOfInserts !== 1 && color.includes(this.state.currentlyFittingCompletions[i])) {
+                    replacement = colours.shift()!;
+                } else {
+                    replacement = alphabet.shift()!;
+                }
+
+                katexString = katexString.replace("$$", replacement);
+                numberOfInserts--;
             }
             if (delimiter_sizing.includes(katexString)) {
                 katexString += "["
