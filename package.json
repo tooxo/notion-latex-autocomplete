@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "build": "esbuild src/autocomplete.ts src/*.json src/options/* src/*.css --bundle --sourcemap --loader:.json=copy --loader:.html=copy --loader:.js=copy --loader:.css=copy --outdir=dist/ && web-ext build --source-dir=dist/ --artifacts-dir=dist/artifacts/ --overwrite-dest",
+    "build": "esbuild src/autocomplete.ts src/*.json src/options/* src/*.css --bundle --sourcemap=inline --loader:.json=copy --loader:.html=copy --loader:.js=copy --loader:.css=copy --outdir=dist/ && web-ext build --source-dir=dist/ --artifacts-dir=dist/artifacts/ --overwrite-dest",
     "clean": "rm -r dist/",
     "build-and-sign": "npm run build && cd dist/ && web-ext sign --channel listed -v --artifacts-dir=artifacts/ --amo-metadata=../metadata.json"
   },

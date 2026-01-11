@@ -79,7 +79,7 @@ class AttachedEquationField {
                     if (this.state.currentlyFittingCompletions.length === 0 || !this.state.active) {
                         return
                     }
-                    this.acceptAutocompletion(eventTarget)
+                    this.acceptAutocompletion()
                 } else {
                     console.log("not active and no jumpp")
                     break
@@ -151,8 +151,8 @@ class AttachedEquationField {
 
             if (_l_diff !== 0) {
                 this.state.jumpPoints = this.state.jumpPoints.map((v) => {
-                    if (v.offset >= cursor_position) {
-                        return new JumpPoint(v.target, v.offset += _l_diff);
+                    if (v.offset >= cursor_position - _l_diff) {
+                        return new JumpPoint(v.target, v.offset + _l_diff);
                     }
                     return v
                 })
@@ -167,78 +167,82 @@ class AttachedEquationField {
         const mutationObserver = new MutationObserver(
             (mutations, _) => {
                 for (const mutation of mutations) {
-                    if (mutation.type === 'childList') {
-                        const added = Array.from(mutation.addedNodes) as HTMLElement[];
-                        let removed = Array.from(mutation.removedNodes) as HTMLElement[];
+                    if (mutation.type !== "childList") {
+                        continue;
+                    }
 
-                        if (added.length > 0) {
-                            if (added[added.length - 1].innerText === "") {
-                                console.log("child (add temp skip)")
-                                this.parkingLot = removed
+                    const added = Array.from(mutation.addedNodes) as HTMLElement[];
+                    let removed = Array.from(mutation.removedNodes) as HTMLElement[];
+
+                    if (added.length > 0) {
+                        if (added[added.length - 1].innerText === "") {
+                            console.log("child (add temp skip)")
+                            this.parkingLot = removed
+                            continue;
+                        }
+                    }
+                    if (removed.length > 0) {
+                        if (removed[removed.length - 1].innerText === "") {
+                            console.log("child (rem temp skip)")
+                            removed = this.parkingLot
+                        }
+                    } else {
+                        continue;
+                    }
+
+                    if (added.length !== removed.length) {
+                        let i = 0;
+
+                        for (; i < Math.min(removed.length); i++) {
+                            if (added[i] === undefined) return
+
+                            if (added[i].innerText !== removed[i].innerText) {
+                                break
+                            }
+                        }
+
+                        const jumpPointsToRemove = [];
+
+                        for (const jp of this.state.jumpPoints) {
+                            if ((added as Node[]).includes(jp.target) || (Array.from(this.attachee.childNodes) as Node[]).includes(jp.target)) {
                                 continue;
                             }
-                        }
-                        if (removed.length > 0) {
-                            if (removed[removed.length - 1].innerText === "") {
-                                console.log("child (rem temp skip)")
-                                removed = this.parkingLot
+
+                            const oldIndex = (removed as Node[]).indexOf(jp.target);
+                            if (oldIndex === -1) {
+                                jumpPointsToRemove.push(jp)
+                                continue
+                            }
+
+                            if (oldIndex < i) {
+                                this.state.jumpPoints[this.state.jumpPoints.indexOf(jp)] = new JumpPoint(added[oldIndex], jp.offset);
+                            } else {
+                                if (added[oldIndex + added.length - removed.length] === undefined) {
+                                    debugger
+                                }
+                                this.state.jumpPoints[this.state.jumpPoints.indexOf(jp)] = new JumpPoint(added[oldIndex + added.length - removed.length], jp.offset);
                             }
                         }
 
-                        if (added.length !== removed.length) {
-                            let i = 0;
-
-                            for (; i < Math.min(removed.length); i++) {
-                                if (added[i] === undefined) return
-
-                                if (added[i].innerText !== removed[i].innerText) {
-                                    break
-                                }
-                            }
-
-                            const jumpPointsToRemove = [];
-
-                            for (const jp of this.state.jumpPoints) {
-                                if ((added as Node[]).includes(jp.target) || (Array.from(this.attachee.childNodes) as Node[]).includes(jp.target)) {
-                                    continue;
-                                }
-
-                                const oldIndex = (removed as Node[]).indexOf(jp.target);
-                                if (oldIndex === -1) {
-                                    jumpPointsToRemove.push(jp)
-                                    continue
-                                }
-
-                                if (oldIndex < i) {
-                                    this.state.jumpPoints[this.state.jumpPoints.indexOf(jp)] = new JumpPoint(added[oldIndex], jp.offset);
-                                } else {
-                                    if (added[oldIndex + added.length - removed.length] === undefined) {
-                                        debugger
-                                    }
-                                    this.state.jumpPoints[this.state.jumpPoints.indexOf(jp)] = new JumpPoint(added[oldIndex + added.length - removed.length], jp.offset);
-                                }
-                            }
-
-                            for (const jp of jumpPointsToRemove) {
-                                this.state.jumpPoints.splice(this.state.jumpPoints.indexOf(jp), 1)
-                            }
-                        } else {
-                            console.log("removed")
-                            for (const currentJumpPoint of this.state.jumpPoints) {
-                                if ((added as Node[]).includes(currentJumpPoint.target) || !(removed as Node[]).includes(currentJumpPoint.target)) {
-                                    continue
-                                }
-
-                                const ind = (removed as Node[]).indexOf(currentJumpPoint.target)
-                                if (ind === -1) debugger
-
-                                this.state.jumpPoints[this.state.jumpPoints.indexOf(currentJumpPoint)] = new JumpPoint(added[ind], currentJumpPoint.offset);
-
-                            }
+                        for (const jp of jumpPointsToRemove) {
+                            this.state.jumpPoints.splice(this.state.jumpPoints.indexOf(jp), 1)
                         }
+                    } else {
+                        console.log("removed")
+                        for (const currentJumpPoint of this.state.jumpPoints) {
+                            if ((added as Node[]).includes(currentJumpPoint.target) || !(removed as Node[]).includes(currentJumpPoint.target)) {
+                                continue
+                            }
 
-                        console.log("jump points changed", this.state.jumpPoints);
+                            const ind = (removed as Node[]).indexOf(currentJumpPoint.target)
+                            if (ind === -1) debugger
+
+                            this.state.jumpPoints[this.state.jumpPoints.indexOf(currentJumpPoint)] = new JumpPoint(added[ind], currentJumpPoint.offset);
+
+                        }
                     }
+
+                    console.log("jump points changed", this.state.jumpPoints);
                 }
 
                 // reintroduce the cursors
@@ -352,7 +356,7 @@ class AttachedEquationField {
 
             let katexString = this.state.currentlyFittingCompletions[i];
             const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
-            const colours = ["#ecec93", "#eb5757", "#ecec93"];
+            const colours = ["#ecec93", "#eb5757", "#2783de"];
             let numberOfInserts = katexString.split("$$").length - 1;
             while (katexString.includes("$$")) {
                 let replacement;
@@ -458,7 +462,8 @@ class AttachedEquationField {
         return true;
     }
 
-    acceptAutocompletion(target: HTMLElement) {
+    acceptAutocompletion() {
+        const target = this.attachee;
         const value = target.innerText;
 
         const currentPos = getCursorPosition();
@@ -471,9 +476,9 @@ class AttachedEquationField {
         const jumpPoints: number[] = []
         for (const part of selectedElement.split("$$")) {
             if (jumpPoints.length === 0) {
-                jumpPoints.push(left.length - this.state.partial.length + part.length)
+                jumpPoints.push(left.length - this.state.partial.length + part.length);
             } else {
-                jumpPoints.push(jumpPoints[jumpPoints.length - 1] + part.length)
+                jumpPoints.push(jumpPoints[jumpPoints.length - 1] + part.length);
             }
         }
 
