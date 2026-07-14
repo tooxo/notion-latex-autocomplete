@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/cezaraugusto/chrome-extension-manifest-json-schema/refs/heads/main/manifest/manifest.schema.v3.json",
   "name": "LaTeX Autocomplete for Notion",
   "author": "Till Schulte",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "manifest_version": 3,
   "minimum_chrome_version": "120",
   "description": "Adds autocompletion to notion equation fields.",
@@ -10,7 +10,8 @@
     {
       "matches": [
         "https://notion.so/*",
-        "https://www.notion.so/*"
+        "https://www.notion.so/*",
+        "https://app.notion.com/*"
       ],
       "js": [
         "autocomplete.js"
@@ -27,13 +28,16 @@
   ],
   "host_permissions": [
     "https://notion.so/*",
-    "https://www.notion.so/*"
+    "https://www.notion.so/*",
+    "https://app.notion.com/*"
   ],
   "browser_specific_settings": {
     "gecko": {
       "id": "not_lat_auto@tillschulte.de",
       "data_collection_permissions": {
-        "required": ["none"]
+        "required": [
+          "none"
+        ]
       }
     }
   }

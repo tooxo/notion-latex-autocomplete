@@ -31,7 +31,7 @@ class AutoCompleteState {
 class AttachedEquationField {
     state: AutoCompleteState = new AutoCompleteState();
 
-    attachee: HTMLElement;
+    equation_field: HTMLElement;
     completionsDiv: HTMLDivElement;
 
     close() {
@@ -43,15 +43,16 @@ class AttachedEquationField {
         this.completionsDiv = document.createElement("div")
         this.completionsDiv.id = "completions";
 
-        this.attachee = element;
+        this.equation_field = element;
         this.addCallbacks();
+        this.addMutationObserver();
         this.updateCompletionList();
     }
 
     autoFormatEnabled: boolean = true;
 
     keyDownEvent(e: KeyboardEvent) {
-        const eventTarget = e.target! as HTMLElement;
+        // rudimentary debounce
         this.autoFormatEnabled = this.autoFormatEnabled || e.key !== "k";
 
         switch (e.key) {
@@ -76,7 +77,7 @@ class AttachedEquationField {
                 if (!this.state.active && this.state.jumpPoints.length > 0) {
                     this.jumpToNextJumpPoint()
                 } else if (this.state.active) {
-                    if (this.state.currentlyFittingCompletions.length === 0 || !this.state.active) {
+                    if (this.state.currentlyFittingCompletions.length === 0) {
                         return
                     }
                     this.acceptAutocompletion()
@@ -108,26 +109,26 @@ class AttachedEquationField {
                 break
             case 'k':
                 if (e.altKey && e.ctrlKey && !e.shiftKey && this.autoFormatEnabled) {
-                    console.log(this.attachee.innerText);
+                    // CTRL + ALT + K formats the field
 
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
                     printPrettier(
-                        this.attachee.innerText,
+                        this.equation_field.innerText,
                         {
                             tabWidth: 2,
                             useTabs: false,
-                            printWidth: 40
+                            printWidth: 80
                         }
                     )
 
                         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                         .then(
                             (response: string) => {
-                                console.log(this.attachee.innerText, response);
+                                console.log(this.equation_field.innerText, response);
 
-                                if (this.attachee.innerText !== response) {
-                                    this.attachee.innerText = response;
-                                    this.attachee.dispatchEvent(new InputEvent("input", {bubbles: true}));
+                                if (this.equation_field.innerText !== response) {
+                                    this.equation_field.innerText = response;
+                                    this.equation_field.dispatchEvent(new InputEvent("input", {bubbles: true}));
                                 }
                             },
                         );
@@ -204,7 +205,7 @@ class AttachedEquationField {
                         const jumpPointsToRemove = [];
 
                         for (const jp of this.state.jumpPoints) {
-                            if ((added as Node[]).includes(jp.target) || (Array.from(this.attachee.childNodes) as Node[]).includes(jp.target)) {
+                            if ((added as Node[]).includes(jp.target) || (Array.from(this.equation_field.childNodes) as Node[]).includes(jp.target)) {
                                 continue;
                             }
 
@@ -254,11 +255,11 @@ class AttachedEquationField {
             }
         )
 
-        mutationObserver.observe(this.attachee, {childList: true});
+        mutationObserver.observe(this.equation_field, {childList: true});
     }
 
     addCallbacks() {
-        const element = this.attachee;
+        const element = this.equation_field;
         element.addEventListener('keydown', (e: Event) => this.keyDownEvent((e as KeyboardEvent)));
 
         element.addEventListener('input', (e) => this.inputEvent((e as InputEvent)));
@@ -276,12 +277,10 @@ class AttachedEquationField {
         document.addEventListener('scroll', () => this.updatePositionCompletionList());
         document.addEventListener('resize', () => this.updatePositionCompletionList());
         document.addEventListener('click', () => this.updatePositionCompletionList());
-
-        this.addMutationObserver();
     }
 
     updateCompletionList(updateLocation = true) {
-        const target = this.attachee;
+        const target = this.equation_field;
 
         const previousSelection = this.state.currentlyFittingCompletions[this.state.currentlySelected]
 
@@ -463,7 +462,7 @@ class AttachedEquationField {
     }
 
     acceptAutocompletion() {
-        const target = this.attachee;
+        const target = this.equation_field;
         const value = target.innerText;
 
         const currentPos = getCursorPosition();
