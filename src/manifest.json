@@ -2,11 +2,14 @@
   "$schema": "https://raw.githubusercontent.com/cezaraugusto/chrome-extension-manifest-json-schema/refs/heads/main/manifest/manifest.schema.v3.json",
   "name": "LaTeX Autocomplete for Notion",
   "author": "Till Schulte",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "manifest_version": 3,
   "minimum_chrome_version": "120",
   "icons": {
-    "128": "icon.png"
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "64": "icons/icon64.png",
+    "128": "icons/icon128.png"
   },
   "description": "Adds autocompletion to notion equation fields.",
   "content_scripts": [
