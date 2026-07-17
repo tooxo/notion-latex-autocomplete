@@ -5,6 +5,9 @@
   "version": "2.2.2",
   "manifest_version": 3,
   "minimum_chrome_version": "120",
+  "icons": {
+    "128": "icon.png"
+  },
   "description": "Adds autocompletion to notion equation fields.",
   "content_scripts": [
     {
@@ -20,6 +23,17 @@
         "styles.css"
       ],
       "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://notion.so/*",
+        "https://www.notion.so/*",
+        "https://app.notion.com/*"
+      ],
+      "js": [
+        "isolated.js"
+      ],
+      "world": "ISOLATED"
     }
   ],
   "permissions": [

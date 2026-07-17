@@ -4,6 +4,7 @@ import {findElementBeforePosition, getCursorPosition, setCursorPosition, sort_va
 // @ts-expect-error aaa
 import {printPrettier} from "prettier-plugin-latex/standalone";
 import katex from "katex";
+import {Box, EntryBody, MessageBroker, QueryMessage, QueryResponse, StoreMessage} from "./message"
 
 class JumpPoint {
     target: Node;
@@ -32,6 +33,11 @@ class AttachedEquationField {
     state: AutoCompleteState = new AutoCompleteState();
 
     equation_field: HTMLElement;
+    resizable_element: HTMLElement | null;
+
+    observer = new StoringResizeObserver("resizable-element");
+
+
     completionsDiv: HTMLDivElement;
 
     close() {
@@ -44,6 +50,8 @@ class AttachedEquationField {
         this.completionsDiv.id = "completions";
 
         this.equation_field = element;
+        this.resizable_element = element.parentElement?.parentElement ?? null;
+
         this.addCallbacks();
         this.addMutationObserver();
         this.updateCompletionList();
@@ -53,7 +61,7 @@ class AttachedEquationField {
 
     keyDownEvent(e: KeyboardEvent) {
         // rudimentary debounce
-        this.autoFormatEnabled = this.autoFormatEnabled || e.key !== "k";
+        this.autoFormatEnabled = this.autoFormatEnabled || (e.key !== "k" && e.key !== "j");
 
         switch (e.key) {
             case '\\':
@@ -108,6 +116,7 @@ class AttachedEquationField {
                 this.updateCompletionList(false)
                 break
             case 'k':
+            case 'j':
                 if (e.altKey && e.ctrlKey && !e.shiftKey && this.autoFormatEnabled) {
                     // CTRL + ALT + K formats the field
 
@@ -117,7 +126,7 @@ class AttachedEquationField {
                         {
                             tabWidth: 2,
                             useTabs: false,
-                            printWidth: 80
+                            printWidth: 60,
                         }
                     )
 
@@ -261,9 +270,7 @@ class AttachedEquationField {
     addCallbacks() {
         const element = this.equation_field;
         element.addEventListener('keydown', (e: Event) => this.keyDownEvent((e as KeyboardEvent)));
-
         element.addEventListener('input', (e) => this.inputEvent((e as InputEvent)));
-
         element.addEventListener('blur', (_ignored) => {
             if (!debug) {
                 this.close()
@@ -273,6 +280,12 @@ class AttachedEquationField {
         element.addEventListener('focusout', (_ignored) => {
             console.log("focusout!")
         })
+
+        if (this.resizable_element !== null) {
+            this.observer.restore(this.resizable_element).then(() => this.resizable_element ? this.observer.observe(this.resizable_element) : {}, console.error);
+        } else {
+            console.error("no resizable element")
+        }
 
         document.addEventListener('scroll', () => this.updatePositionCompletionList());
         document.addEventListener('resize', () => this.updatePositionCompletionList());
@@ -561,7 +574,51 @@ class DocumentObserver extends MutationObserver {
     }
 }
 
+class StoringResizeObserver extends ResizeObserver {
+    storage_tag: string;
+
+    constructor(storage_tag: string) {
+        super((entries) => this.callback(entries));
+        this.storage_tag = "size_" + storage_tag;
+    }
+
+    store(element: HTMLElement) {
+        const box = new Box(element.clientHeight, element.clientWidth);
+
+        // dont store this
+        if (box.width === 0 || box.height === 0) return;
+
+        messageBroker.query(
+            new StoreMessage(crypto.randomUUID(), new EntryBody(this.storage_tag, box)),
+        ).catch(console.error);
+    }
+
+    async restore(element: HTMLElement) {
+        const response = await messageBroker.query(
+            new QueryMessage(
+                crypto.randomUUID(), this.storage_tag,
+            )
+        );
+        const m: QueryResponse = response as QueryResponse;
+        if (m.body !== null) {
+            element.style.height = m.body.height + "px";
+            element.style.width = m.body.width + "px";
+            console.log("restored saved size values.", this.storage_tag, m.body);
+        }
+
+        return null;
+    }
+
+    callback(entries: ResizeObserverEntry[]): void {
+        for (const entry of entries) {
+            this.store(entry.target as HTMLElement);
+        }
+    }
+}
+
 const debug = false;
+
+const messageBroker = new MessageBroker((_) => Promise.resolve(null));
 
 const completion_ranking = new Map<string, number>()
 for (const possibility of all_flattened) {
