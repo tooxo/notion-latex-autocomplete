@@ -1,12 +1,17 @@
 name: Build Extension
-on: [push]
+on: [ push ]
 jobs:
   build-extension:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-node@v4
       - uses: actions/checkout@master
-      - run: npm install && npm run build
+      - run: npm install --include=dev && npm run build
+      - run: npm run sign-and-release
+        if: contains(github.event.head_commit.message, '[release]')
+        env:
+          WEB_EXT_API_KEY: "${{ secrets.MOZILLA_KEY }}"
+          WEB_EXT_API_SECRET: "${{ secrets.MOZILLA_SECRET }}"
       - uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
