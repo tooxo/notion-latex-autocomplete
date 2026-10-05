@@ -49,7 +49,6 @@
 }
 
 div[role="dialog"] {
-    /* width: 600px !important; */
     resize: both;
 }
 

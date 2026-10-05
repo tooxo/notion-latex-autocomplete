@@ -2,8 +2,8 @@ function boolean_to_number(b: boolean | null) {
     return b ? 1 : 0;
 }
 
-export function sort_value(ref: string, x: string, completion_ranking: Map<string, number>) {
-    return (boolean_to_number(x.startsWith(ref)) + 0.5) * (completion_ranking.get(x)! + 1)
+export function sort_value(ref: string, x: {string(): string}, completion_ranking: Map<{ string(): string }, number>) {
+    return (boolean_to_number(x.string().startsWith(ref)) + 0.5) * (completion_ranking.get(x)! + 1)
 }
 
 function getLengthBefore(nodeCursor: Node | null) {

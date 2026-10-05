@@ -12,6 +12,7 @@
     "128": "icons/icon128.png"
   },
   "description": "Adds autocompletion to notion equation fields.",
+  "options_page": "options/options.html",
   "content_scripts": [
     {
       "matches": [

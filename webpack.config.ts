@@ -9,7 +9,8 @@ const __dirname = path.dirname(__filename);
 const config: webpack.Configuration = {
     entry: {
         autocomplete: "./src/autocomplete.ts",
-        isolated: "./src/isolated.ts"
+        isolated: "./src/isolated.ts",
+        "options/options": "./src/options/options.ts"
     },
     module: {
         rules: [
@@ -18,6 +19,14 @@ const config: webpack.Configuration = {
                 use: "ts-loader",
                 exclude: /node_modules/,
             },
+            {
+                test: /\.ts$/,
+                include: /node_modules\/katex\/src/, // exclude everything except katex/src
+                use: {
+                    loader: "ts-loader",
+                    options: {transpileOnly: true}, // skip type-checking third-party source
+                },
+            }
         ],
     },
     optimization: {

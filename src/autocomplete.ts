@@ -1,10 +1,11 @@
 "use strict"
-import {all_flattened, color, delimiter_sizing} from "./constants";
 import {findElementBeforePosition, getCursorPosition, setCursorPosition, sort_value} from "./contextless"
 // @ts-expect-error aaa
 import {printPrettier} from "prettier-plugin-latex/standalone";
 import katex from "katex";
+
 import {Box, EntryBody, MessageBroker, QueryMessage, QueryResponse, StoreMessage} from "./message"
+import {all_functions, KatexFunction} from "./constants";
 
 class JumpPoint {
     target: Node;
@@ -18,15 +19,15 @@ class JumpPoint {
 
 class AutoCompleteState {
     active = false;
-    allCompletions = all_flattened
+    allCompletions = all_functions
 
-    partial = ""
-    currentlyFittingCompletions: string[] = []
+    partial: string | null = null
+    currentlyFittingCompletions: KatexFunction[] = []
     currentlySelected = 0
 
     jumpPoints: JumpPoint[] = []
 
-    lastCompletions: string[] = []
+    lastCompletions: KatexFunction[] = []
 }
 
 class AttachedEquationField {
@@ -68,15 +69,14 @@ class AttachedEquationField {
                 this.state.active = true
                 console.log("+ complete active")
                 break
-            case "Escape":
-                this.state.jumpPoints = []
-
-            // noinspection FallThroughInSwitchStatementJS
             case " ":
-                this.state.active = false
-                console.log("- complete inactive")
+                if (e.ctrlKey) {
+                    this.state.active = this.getPartial() !== null;
+                } else {
+                    this.state.active = false;
+                }
+                this.updateCompletionList(true);
 
-                this.completionsDiv.style.display = "none"
                 break
             case "Tab":
                 e.preventDefault();
@@ -90,7 +90,7 @@ class AttachedEquationField {
                     }
                     this.acceptAutocompletion()
                 } else {
-                    console.log("not active and no jumpp")
+                    console.log("not active and no jump")
                     break
                 }
                 break
@@ -292,59 +292,86 @@ class AttachedEquationField {
         document.addEventListener('click', () => this.updatePositionCompletionList());
     }
 
-    updateCompletionList(updateLocation = true) {
-        const target = this.equation_field;
+    private getPartial() {
+        let selection = this.equation_field.ownerDocument.getSelection();
+        if (selection === null) {
+            console.log("select: selection not found");
+            return null;
+        }
+        let cursorPosition = getCursorPosition();
+        let part = this.equation_field.innerText.slice(0, cursorPosition);
 
+        // Matches: \{2n+1}[cmd], only at line end, thus at current caret position
+        // Basically asserts whether we are currently in the midst of writing/selecting a valid command
+
+        const preamble_pattern: string = String.raw`(?<preamble>(?<=[^\\]|^)(?:\\\\)*)`;
+        const command_pattern: string = String.raw`(?<cmd>\\[A-Za-z@]+(?:\[])*(?:\[$)?(?:\{})*(?:\{$)?)`;
+
+        let command_match = part.match(new RegExp(
+            preamble_pattern + command_pattern + "$"
+        ));
+        if (command_match === null) {
+            console.log("select: nothing valid is currently selected");
+            return null;
+        }
+        let start_of_token = command_match.index! + command_match.groups!["preamble"].length;
+        console.log("this.equation_field.innerText.slice(start_of_token)", this.equation_field.innerText.slice(start_of_token))
+        let token_length = this.equation_field.innerText.slice(start_of_token).match(new RegExp(command_pattern))!.groups!["cmd"].length;
+        let currently_selected = this.equation_field.innerText.slice(start_of_token, start_of_token + token_length);
+
+        console.log("select: change event", currently_selected);
+        return currently_selected;
+    }
+
+    updateCompletionList(updateLocation = true) {
         const previousSelection = this.state.currentlyFittingCompletions[this.state.currentlySelected]
 
         this.state.currentlyFittingCompletions = []
         this.completionsDiv.innerHTML = ''
 
+        const defer = () => {
+            if (this.state.currentlyFittingCompletions.length === 0) {
+                this.completionsDiv.style.display = "none"
+            } else {
+                this.completionsDiv.style.display = "block"
+            }
+
+            if (updateLocation) this.updatePositionCompletionList()
+        }
+
         if (!this.state.active) {
-            return;
+            return defer();
         }
 
-        const val = target.innerText
+        this.state.partial = this.getPartial();
 
-        const cursor = getCursorPosition();
-        const subString = val.substring(0, cursor)
-        if (!subString.includes("\\")) {
-            return
-        }
-        const l = subString.split("\\")
-        this.state.partial = l[l.length - 1]
-
-        if (this.state.partial.includes(" ")) {
-            return;
-        }
-
-        console.log("partial=", this.state.partial);
-        if (this.state.partial.length === 0) {
-            return
+        console.log("partial='%s'", this.state.partial);
+        if (this.state.partial === null) {
+            return defer();
         }
 
         for (const lastSelectionElement of this.state.lastCompletions) {
-            if (lastSelectionElement.replaceAll("$$", "").includes(this.state.partial)) {
+            if (lastSelectionElement.matches(this.state.partial)) {
                 this.state.currentlyFittingCompletions.push(lastSelectionElement)
             }
         }
 
-        const lowPriorityCurrent: string[] = []
+        const lowPriorityCurrent: KatexFunction[] = []
         for (const completion of this.state.allCompletions) {
-            if (completion.replaceAll("$$", "").includes(this.state.partial) && !lowPriorityCurrent.includes(completion) && !this.state.currentlyFittingCompletions.includes(completion)) {
+            if (completion.matches(this.state.partial) && !lowPriorityCurrent.includes(completion) && !this.state.currentlyFittingCompletions.includes(completion)) {
                 lowPriorityCurrent.push(completion)
             }
         }
 
         if (lowPriorityCurrent.length < 5) {
             for (const completion of this.state.allCompletions) {
-                if (completion.toLowerCase().replaceAll("$$", "").includes(this.state.partial.toLowerCase()) && !lowPriorityCurrent.includes(completion) && !this.state.currentlyFittingCompletions.includes(completion)) {
+                if (completion.matches(this.state.partial, true) && !lowPriorityCurrent.includes(completion) && !this.state.currentlyFittingCompletions.includes(completion)) {
                     lowPriorityCurrent.push(completion)
                 }
             }
         }
 
-        lowPriorityCurrent.sort((a, b) => sort_value(this.state.partial, b, completion_ranking) - sort_value(this.state.partial, a, completion_ranking));
+        lowPriorityCurrent.sort((a, b) => sort_value(this.state.partial!, b, completion_ranking) - sort_value(this.state.partial!, a, completion_ranking));
         this.state.currentlyFittingCompletions.push(...lowPriorityCurrent)
         this.state.currentlyFittingCompletions = this.state.currentlyFittingCompletions.flat()
 
@@ -366,27 +393,8 @@ class AttachedEquationField {
             const span_elem = document.createElement("span");
             span_elem.classList.add("name");
 
-            let katexString = this.state.currentlyFittingCompletions[i];
-            const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
-            const colours = ["#ecec93", "#eb5757", "#2783de"];
-            let numberOfInserts = katexString.split("$$").length - 1;
-            while (katexString.includes("$$")) {
-                let replacement;
-                if (numberOfInserts !== 1 && color.includes(this.state.currentlyFittingCompletions[i])) {
-                    replacement = colours.shift()!;
-                } else {
-                    replacement = alphabet.shift()!;
-                }
-
-                katexString = katexString.replace("$$", replacement);
-                numberOfInserts--;
-            }
-            if (delimiter_sizing.includes(katexString)) {
-                katexString += "["
-            }
-
             try {
-                katex.render("\\" + katexString, p_elem, {
+                katex.render(this.state.currentlyFittingCompletions[i].render(), p_elem, {
                     throwOnError: true
                 });
 
@@ -408,7 +416,7 @@ class AttachedEquationField {
 
             p_elem.appendChild(span_elem);
 
-            span_elem.innerHTML = this.state.currentlyFittingCompletions[i].replaceAll("$$", "")
+            span_elem.innerHTML = this.state.currentlyFittingCompletions[i].string()
 
             if (i === this.state.currentlySelected) {
                 p_elem.classList.add("selected")
@@ -417,20 +425,13 @@ class AttachedEquationField {
             p_elem.hidden = false;
         }
 
-        if (this.state.currentlyFittingCompletions.length === 0) {
-            this.completionsDiv.style.display = "none"
-        } else {
-            this.completionsDiv.style.display = "block"
-        }
-
-        if (updateLocation) this.updatePositionCompletionList()
+        return defer();
     }
 
     updatePositionCompletionList() {
         console.log("update position completionList");
         let target: Element | null;
         const selection = window.getSelection();
-        // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
         if (selection === null || selection.focusNode === null) {
             debugger;
             return;
@@ -481,12 +482,17 @@ class AttachedEquationField {
         const currentPos = getCursorPosition();
 
         const left = value.substring(0, currentPos)
-        const right = value.substring(currentPos, value.length)
+        const right = value.substring(currentPos)
 
         const selectedElement = this.state.currentlyFittingCompletions[this.state.currentlySelected];
 
+        if (this.state.partial === null) {
+            debugger;
+            return;
+        }
+
         const jumpPoints: number[] = []
-        for (const part of selectedElement.split("$$")) {
+        for (const part of selectedElement.partwise()) {
             if (jumpPoints.length === 0) {
                 jumpPoints.push(left.length - this.state.partial.length + part.length);
             } else {
@@ -499,7 +505,7 @@ class AttachedEquationField {
         }
         completion_ranking.set(selectedElement, completion_ranking.get(selectedElement)! + 1);
 
-        target.innerText = left.substring(0, left.length - this.state.partial.length) + selectedElement.replaceAll("$$", "") + right;
+        target.innerText = left.substring(0, left.length - this.state.partial.length) + selectedElement.string() + right;
         target.dispatchEvent(new InputEvent("input", {bubbles: true}));
 
         const newJumpPoints = []
@@ -620,8 +626,8 @@ const debug = false;
 
 const messageBroker = new MessageBroker((_) => Promise.resolve(null));
 
-const completion_ranking = new Map<string, number>()
-for (const possibility of all_flattened) {
+const completion_ranking = new Map<KatexFunction, number>()
+for (const possibility of all_functions) {
     completion_ranking.set(possibility, 0)
 }
 

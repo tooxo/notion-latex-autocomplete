@@ -86,7 +86,11 @@ export class MessageBroker {
                 if (!(data.type)) return // not for us
                 if (!data.type.startsWith("notion-latex-message")) return;
 
-                callback(data as Message<unknown>)
+                let msg: Message<any> = data as Message<any>;
+
+                msg.body = msg.body ?? null;
+
+                callback(msg)
                     .then(
                         (possibleResponse) => {
                             if (possibleResponse) {
