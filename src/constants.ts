@@ -13,8 +13,57 @@ enum ArgumentType {
     any,
     bracket,
     size,
+    url,
     color
 }
+
+type FunctionType =
+    "accent"
+    | "accentUnder"
+    | "xArrow"
+    | "mclass"
+    | "pmb"
+    | "textord"
+    | "color"
+    | "delimsizing"
+    | "leftright-right"
+    | "leftright"
+    | "middle"
+    | "enclose"
+    | "text"
+    | "font"
+    | "genfrac"
+    | "infix"
+    | "horizBrace"
+    | "href"
+    | "hbox"
+    | "htmlmathml"
+    | "kern"
+    | "lap"
+    | "styling"
+    | "mathchoice"
+    | "op"
+    | "operatorname"
+    | "overline"
+    | "phantom"
+    | "vphantom"
+    | "raisebox"
+    | "reflectbox"
+    | "sizing"
+    | "smash"
+    | "sqrt"
+    | "underline"
+    | "vcenter"
+    | "verb"
+    | "environment"
+    | "macro"
+    | "symbol"
+    | "rule"
+    | "internal"
+    | "html"
+    | "includegraphics"
+    | "cdlabel"
+    | "cdlabelparent";
 
 function parseArgumentTypes(numArgs: number, inp: string[] | undefined): ArgumentType[] {
     if (inp === undefined) return Array.from({length: numArgs}, () => ArgumentType.any);
@@ -28,8 +77,12 @@ function parseArgumentTypes(numArgs: number, inp: string[] | undefined): Argumen
             case "color":
                 types.push(ArgumentType.color);
                 break;
+            case "url":
+                types.push(ArgumentType.url);
+                break;
             default:
                 types.push(ArgumentType.any);
+                break;
         }
     }
     return types;
@@ -37,12 +90,12 @@ function parseArgumentTypes(numArgs: number, inp: string[] | undefined): Argumen
 
 export class KatexFunction {
     private readonly name: string;
-    private readonly type: string;
+    private readonly type: FunctionType;
 
     private readonly args: ArgumentType[];
     private readonly optionalArgs: ArgumentType[];
 
-    constructor(name: string, type: string, args: ArgumentType[], optionalArgs: ArgumentType[]) {
+    constructor(name: string, type: FunctionType, args: ArgumentType[], optionalArgs: ArgumentType[]) {
         this.name = name;
         this.type = type;
         this.args = args;
@@ -66,6 +119,7 @@ export class KatexFunction {
 
         let katexString = "\\" + this.name;
         const alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
+        const urls = ["https://example.com", "https://app.notion.so/"]
         const delim_alphabet = "[({".split("");
         const colours = ["#ecec93", "#eb5757", "#2783de"];
         const sizes = ["1em", "2em", "3em", "4em"];
@@ -80,6 +134,8 @@ export class KatexFunction {
                     return delim_alphabet.shift()!;
                 case ArgumentType.any:
                     return bra + alphabet.shift()! + ket;
+                case ArgumentType.url:
+                    return bra + urls.shift()! + ket;
                 case ArgumentType.size:
                     return bra + sizes.shift()! + ket;
             }
@@ -142,10 +198,10 @@ try {
     const functions: Record<string, {
         numArgs: number,
         numOptionalArgs: number,
-        type: string,
+        type: FunctionType,
         argTypes?: string[]
     }> = katexFunctions;
-    const ignored_function_types = ["environment", "rule", "internal", "html", "includegraphics", "cdlabel", "cdlabelparent"];
+    const ignored_function_types: FunctionType[] = ["environment", "rule", "internal", "html", "includegraphics", "cdlabel", "cdlabelparent", "textord"];
     const ignored_functions: string[] = [];
     for (const key of Object.keys(functions)) {
         if (!key.startsWith("\\")) continue;
@@ -167,7 +223,7 @@ try {
     }
 
     const macros: Record<string, any> = katexMacros;
-    const ignored_macros: string[] = ["\\bra@ket", "\\bra@set"];
+    const ignored_macros: string[] = ["\\bra@ket", "\\bra@set", "\\@hspace", "\\@hspacer"];
     for (let key of Object.keys(macros)) {
         if (!key.startsWith("\\")) continue;
         if (ignored_macros.includes(key)) continue;
