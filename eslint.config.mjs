@@ -18,7 +18,7 @@ export default defineConfig(
         rules: {
             "no-unused-vars": "off",
             "no-debugger": "off",
-
+            "@typescript-eslint/no-debugger": "off",
             "@typescript-eslint/no-inferrable-types": "off",
             "@typescript-eslint/no-unused-vars": "off",
         }
