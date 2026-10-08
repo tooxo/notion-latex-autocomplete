@@ -4,15 +4,24 @@ jobs:
   build-extension:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-      - uses: actions/checkout@master
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+
       - run: npm install --include=dev && npm run build
-      - run: npm run sign-and-release
+
+      - name: Sign and Release Firefox Extension
         if: contains(github.event.head_commit.message, '[release]')
+        run: npm run sign-and-release
         env:
           WEB_EXT_API_KEY: "${{ secrets.MOZILLA_KEY }}"
           WEB_EXT_API_SECRET: "${{ secrets.MOZILLA_SECRET }}"
-      - uses: "marvinpinto/action-automatic-releases@latest"
+
+      - name: Create Stable Release
+        if: contains(github.event.head_commit.message, '[release]')
+        uses: marvinpinto/action-automatic-releases@latest
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "stable-latest"
@@ -20,8 +29,10 @@ jobs:
           title: "Stable Development Build"
           files: |
             dist/artifacts/*
-      - uses: "marvinpinto/action-automatic-releases@latest"
-        if: !(contains(github.event.head_commit.message, '[release]'))
+
+      - name: Create Development Release
+        if: "!contains(github.event.head_commit.message, '[release]')"
+        uses: marvinpinto/action-automatic-releases@latest
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "latest"
