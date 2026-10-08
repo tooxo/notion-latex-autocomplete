@@ -1,7 +1,6 @@
 "use strict"
 import {findElementBeforePosition, getCursorPosition, setCursorPosition, sort_value} from "./contextless"
-// @ts-expect-error aaa
-import {printPrettier} from "prettier-plugin-latex/standalone";
+import {printPrettier} from "prettier-plugin-latex/standalone.js";
 import katex from "katex";
 
 import {Box, EntryBody, MessageBroker, QueryMessage, QueryResponse, StoreMessage} from "./message"
@@ -111,7 +110,7 @@ class AttachedEquationField {
                 e.preventDefault()
                 this.state.currentlySelected--;
                 if (this.state.currentlySelected < 0) {
-                    this.state.currentlySelected = Math.min(4, this.state.currentlyFittingCompletions.length - 1)
+                    this.state.currentlySelected = this.state.currentlyFittingCompletions.length - 1;
                 }
                 this.updateCompletionList(false)
                 break
@@ -120,7 +119,6 @@ class AttachedEquationField {
                 if (e.altKey && e.ctrlKey && !e.shiftKey && this.autoFormatEnabled) {
                     // CTRL + ALT + K formats the field
 
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
                     printPrettier(
                         this.equation_field.innerText,
                         {
@@ -128,19 +126,16 @@ class AttachedEquationField {
                             useTabs: false,
                             printWidth: 60,
                         }
-                    )
+                    ).then(
+                        (response: string) => {
+                            console.log(this.equation_field.innerText, response);
 
-                        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                        .then(
-                            (response: string) => {
-                                console.log(this.equation_field.innerText, response);
-
-                                if (this.equation_field.innerText !== response) {
-                                    this.equation_field.innerText = response;
-                                    this.equation_field.dispatchEvent(new InputEvent("input", {bubbles: true}));
-                                }
-                            },
-                        );
+                            if (this.equation_field.innerText !== response) {
+                                this.equation_field.innerText = response;
+                                this.equation_field.dispatchEvent(new InputEvent("input", {bubbles: true}));
+                            }
+                        },
+                    ).catch(e => console.error("error running prettier", e));
 
                     this.autoFormatEnabled = false;
                     e.preventDefault();
@@ -238,7 +233,6 @@ class AttachedEquationField {
                             this.state.jumpPoints.splice(this.state.jumpPoints.indexOf(jp), 1)
                         }
                     } else {
-                        console.log("removed")
                         for (const currentJumpPoint of this.state.jumpPoints) {
                             if ((added as Node[]).includes(currentJumpPoint.target) || !(removed as Node[]).includes(currentJumpPoint.target)) {
                                 continue
@@ -251,8 +245,6 @@ class AttachedEquationField {
 
                         }
                     }
-
-                    console.log("jump points changed", this.state.jumpPoints);
                 }
 
                 // reintroduce the cursors
@@ -268,16 +260,15 @@ class AttachedEquationField {
     }
 
     addCallbacks() {
-        const element = this.equation_field;
-        element.addEventListener('keydown', (e: Event) => this.keyDownEvent((e as KeyboardEvent)));
-        element.addEventListener('input', (e) => this.inputEvent((e as InputEvent)));
-        element.addEventListener('blur', (_ignored) => {
+        this.equation_field.addEventListener('keydown', (e: Event) => this.keyDownEvent((e as KeyboardEvent)));
+        this.equation_field.addEventListener('input', (e) => this.inputEvent((e as InputEvent)));
+        this.equation_field.addEventListener('blur', (_ignored) => {
             if (!debug) {
-                this.close()
+                // this.close()
             }
         })
 
-        element.addEventListener('focusout', (_ignored) => {
+        this.equation_field.addEventListener('focusout', (_ignored) => {
             console.log("focusout!")
         })
 
@@ -289,17 +280,20 @@ class AttachedEquationField {
 
         document.addEventListener('scroll', () => this.updatePositionCompletionList());
         document.addEventListener('resize', () => this.updatePositionCompletionList());
-        document.addEventListener('click', () => this.updatePositionCompletionList());
+        this.completionsDiv.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+        });
+        // document.addEventListener('click', () => this.updatePositionCompletionList());
     }
 
     private getPartial() {
-        let selection = this.equation_field.ownerDocument.getSelection();
+        const selection = this.equation_field.ownerDocument.getSelection();
         if (selection === null) {
             console.log("select: selection not found");
             return null;
         }
-        let cursorPosition = getCursorPosition();
-        let part = this.equation_field.innerText.slice(0, cursorPosition);
+        const cursorPosition = getCursorPosition();
+        const part = this.equation_field.innerText.slice(0, cursorPosition);
 
         // Matches: \{2n+1}[cmd], only at line end, thus at current caret position
         // Basically asserts whether we are currently in the midst of writing/selecting a valid command
@@ -307,17 +301,17 @@ class AttachedEquationField {
         const preamble_pattern: string = String.raw`(?<preamble>(?<=[^\\]|^)(?:\\\\)*)`;
         const command_pattern: string = String.raw`(?<cmd>\\[A-Za-z@]+(?:\[])*(?:\[$)?(?:\{})*(?:\{$)?)`;
 
-        let command_match = part.match(new RegExp(
+        const command_match = new RegExp(
             preamble_pattern + command_pattern + "$"
-        ));
+        ).exec(part);
         if (command_match === null) {
             console.log("select: nothing valid is currently selected");
             return null;
         }
-        let start_of_token = command_match.index! + command_match.groups!["preamble"].length;
+        const start_of_token = command_match.index + command_match.groups!.preamble.length;
         console.log("this.equation_field.innerText.slice(start_of_token)", this.equation_field.innerText.slice(start_of_token))
-        let token_length = this.equation_field.innerText.slice(start_of_token).match(new RegExp(command_pattern))!.groups!["cmd"].length;
-        let currently_selected = this.equation_field.innerText.slice(start_of_token, start_of_token + token_length);
+        const token_length = new RegExp(command_pattern).exec(this.equation_field.innerText.slice(start_of_token))!.groups!.cmd.length;
+        const currently_selected = this.equation_field.innerText.slice(start_of_token, start_of_token + token_length);
 
         console.log("select: change event", currently_selected);
         return currently_selected;
@@ -363,11 +357,9 @@ class AttachedEquationField {
             }
         }
 
-        if (lowPriorityCurrent.length < 5) {
-            for (const completion of this.state.allCompletions) {
-                if (completion.matches(this.state.partial, true) && !lowPriorityCurrent.includes(completion) && !this.state.currentlyFittingCompletions.includes(completion)) {
-                    lowPriorityCurrent.push(completion)
-                }
+        for (const completion of this.state.allCompletions) {
+            if (completion.matches(this.state.partial, true) && !lowPriorityCurrent.includes(completion) && !this.state.currentlyFittingCompletions.includes(completion)) {
+                lowPriorityCurrent.push(completion)
             }
         }
 
@@ -375,7 +367,7 @@ class AttachedEquationField {
         this.state.currentlyFittingCompletions.push(...lowPriorityCurrent)
         this.state.currentlyFittingCompletions = this.state.currentlyFittingCompletions.flat()
 
-        if (previousSelection !== undefined && this.state.currentlyFittingCompletions.slice(0, 5).includes(previousSelection)) {
+        if (previousSelection !== undefined && this.state.currentlyFittingCompletions.includes(previousSelection)) {
             this.state.currentlySelected = this.state.currentlyFittingCompletions.indexOf(previousSelection)
         } else {
             this.state.currentlySelected = 0
@@ -384,7 +376,7 @@ class AttachedEquationField {
         console.log("currentlySelected=", this.state.currentlySelected)
         console.log(this.state.currentlyFittingCompletions)
 
-        for (let i = 0; i < Math.min(5, this.state.currentlyFittingCompletions.length); i++) {
+        for (let i = 0; i < this.state.currentlyFittingCompletions.length; i++) {
             const p_elem = document.createElement("p")
             this.completionsDiv.appendChild(p_elem)
 
@@ -421,23 +413,36 @@ class AttachedEquationField {
             if (i === this.state.currentlySelected) {
                 p_elem.classList.add("selected")
             }
+            p_elem.addEventListener(
+                "click", () => {
+                    this.state.currentlySelected = i;
+                    this.completionsDiv.querySelector(".selected")?.classList.remove("selected");
+                    p_elem.classList.add("selected");
+                }
+            )
+            p_elem.addEventListener("dblclick", () => this.acceptAutocompletion())
 
             p_elem.hidden = false;
+        }
+
+        if (this.state.currentlyFittingCompletions.length > 0) {
+            this.completionsDiv.querySelector(".selected")?.scrollIntoView({
+                block: "nearest", inline: "nearest", behavior: "instant"
+            })
         }
 
         return defer();
     }
 
     updatePositionCompletionList() {
-        console.log("update position completionList");
         let target: Element | null;
         const selection = window.getSelection();
-        if (selection === null || selection.focusNode === null) {
+        if (selection?.focusNode === null) {
             debugger;
             return;
         }
 
-        const fn = selection.focusNode;
+        const fn = selection!.focusNode;
         if (fn instanceof Text) {
             // if there is a "temp" node for rendering, we skip it
             if (!fn.nodeValue!.startsWith("\\")) {
@@ -453,7 +458,7 @@ class AttachedEquationField {
             return;
         }
 
-        console.log("update position", selection.focusNode, target, target.getBoundingClientRect().top + target.getBoundingClientRect().height + "px", target.getBoundingClientRect().left + "px", target.getBoundingClientRect().height + "px");
+        console.log("update position", selection!.focusNode, target, target.getBoundingClientRect().top + target.getBoundingClientRect().height + "px", target.getBoundingClientRect().left + "px", target.getBoundingClientRect().height + "px");
 
         this.completionsDiv.style.top = target.getBoundingClientRect().top + target.getBoundingClientRect().height + "px";
         this.completionsDiv.style.left = target.getBoundingClientRect().left + "px";

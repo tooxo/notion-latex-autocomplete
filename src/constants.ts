@@ -1,13 +1,12 @@
+"use strict"
 // noinspection ES6UnusedImports
 import katex from "katex";
-// @ts-expect-error
-import katexFunctions from "katex/src/functions";
-// @ts-expect-error
+import katexFunctions, { FunctionType } from "katex/src/functions";
 import katexEnvironments from "katex/src/environments";
-// @ts-expect-error
 import katexMacros from "katex/src/macros";
-// @ts-expect-error
 import katexSymbols from "katex/src/symbols";
+
+export type { FunctionType };
 
 enum ArgumentType {
     any,
@@ -17,59 +16,11 @@ enum ArgumentType {
     color
 }
 
-type FunctionType =
-    "accent"
-    | "accentUnder"
-    | "xArrow"
-    | "mclass"
-    | "pmb"
-    | "textord"
-    | "color"
-    | "delimsizing"
-    | "leftright-right"
-    | "leftright"
-    | "middle"
-    | "enclose"
-    | "text"
-    | "font"
-    | "genfrac"
-    | "infix"
-    | "horizBrace"
-    | "href"
-    | "hbox"
-    | "htmlmathml"
-    | "kern"
-    | "lap"
-    | "styling"
-    | "mathchoice"
-    | "op"
-    | "operatorname"
-    | "overline"
-    | "phantom"
-    | "vphantom"
-    | "raisebox"
-    | "reflectbox"
-    | "sizing"
-    | "smash"
-    | "sqrt"
-    | "underline"
-    | "vcenter"
-    | "verb"
-    | "environment"
-    | "macro"
-    | "symbol"
-    | "rule"
-    | "internal"
-    | "html"
-    | "includegraphics"
-    | "cdlabel"
-    | "cdlabelparent";
-
 function parseArgumentTypes(numArgs: number, inp: string[] | undefined): ArgumentType[] {
     if (inp === undefined) return Array.from({length: numArgs}, () => ArgumentType.any);
 
-    let types: ArgumentType[] = [];
-    for (let ty of inp) {
+    const types: ArgumentType[] = [];
+    for (const ty of inp) {
         switch (ty) {
             case "size":
                 types.push(ArgumentType.size);
@@ -125,8 +76,8 @@ export class KatexFunction {
         const sizes = ["1em", "2em", "3em", "4em"];
 
         function nextArg(arg: ArgumentType, optional: boolean): string {
-            let bra = optional ? "[" : "{";
-            let ket = optional ? "]" : "}";
+            const bra = optional ? "[" : "{";
+            const ket = optional ? "]" : "}";
             switch (arg) {
                 case ArgumentType.color:
                     return bra + colours.shift()! + ket;
@@ -141,13 +92,14 @@ export class KatexFunction {
             }
         }
 
-        if (this.isColour())
-            for (let i = 0; i < this.optionalArgs.length; i++) {
+        if (this.isColour()) {
+            for (const _ of this.optionalArgs) {
                 katexString += nextArg(ArgumentType.color, true);
             }
+        }
 
-        for (let i = 0; i < this.args.length; i++) {
-            katexString += nextArg(this.args[i], false);
+        for (const arg of this.args) {
+            katexString += nextArg(arg, false);
         }
         return katexString;
     }
@@ -168,11 +120,11 @@ export class KatexFunction {
             str[0] += " ";
         }
 
-        for (let i = 0; i < this.optionalArgs.length; i++) {
+        for (const _ of this.optionalArgs) {
             str[str.length - 1] += "[";
             str.push("]");
         }
-        for (let i = 0; i < this.args.length; i++) {
+        for (const _ of this.args) {
             str[str.length - 1] += "{";
             str.push("}");
         }
@@ -195,54 +147,48 @@ export class KatexFunction {
 
 export const all_functions: KatexFunction[] = [];
 try {
-    const functions: Record<string, {
-        numArgs: number,
-        numOptionalArgs: number,
-        type: FunctionType,
-        argTypes?: string[]
-    }> = katexFunctions;
+    const functions = katexFunctions;
     const ignored_function_types: FunctionType[] = ["environment", "rule", "internal", "html", "includegraphics", "cdlabel", "cdlabelparent", "textord"];
-    const ignored_functions: string[] = [];
     for (const key of Object.keys(functions)) {
-        if (!key.startsWith("\\")) continue;
-        if (key.startsWith("\\\\")) continue;
-        let fn = functions[key];
-        if (ignored_function_types.includes(fn.type) || ignored_functions.includes(key)) continue;
+        if (!key.startsWith("\\") || key.startsWith("\\\\")) continue;
+        const fn = functions[key];
+        if (ignored_function_types.includes(fn.type)) continue;
 
         let args = parseArgumentTypes(fn.numArgs, fn.argTypes);
         if (fn.type === "delimsizing")
             args = Array.from({length: fn.numArgs}, () => ArgumentType.bracket);
 
-        let katexFunction = new KatexFunction(key.replaceAll("\\", ""), fn.type, args, parseArgumentTypes(fn.numOptionalArgs, undefined));
+        const katexFunction = new KatexFunction(key.replaceAll("\\", ""), fn.type, args, parseArgumentTypes(fn.numOptionalArgs, undefined));
         all_functions.push(katexFunction);
     }
 
-    const environments: Record<string, { numArgs: number, argTypes?: string[] }> = katexEnvironments;
-    for (let e_group of Object.keys(environments)) {
+    const environments = katexEnvironments;
+    for (const e_group of Object.keys(environments)) {
         all_functions.push(new KatexFunction(e_group, "environment", parseArgumentTypes(environments[e_group].numArgs, environments[e_group].argTypes), []));
     }
 
-    const macros: Record<string, any> = katexMacros;
+    const macros = katexMacros;
     const ignored_macros: string[] = ["\\bra@ket", "\\bra@set", "\\@hspace", "\\@hspacer"];
-    for (let key of Object.keys(macros)) {
+    for (const key of Object.keys(macros)) {
         if (!key.startsWith("\\")) continue;
         if (ignored_macros.includes(key)) continue;
         let numArgs = 0;
-        if (macros[key].numArgs !== undefined) {
-            numArgs = macros[key].numArgs;
+        const macro = macros[key];
+        if (typeof macro === "object" && macro?.numArgs !== undefined) {
+            numArgs = macro.numArgs;
         }
-        if (typeof macros[key] === "string") {
-            numArgs = new Array(...macros[key].matchAll(/(?<=[^#])#\d+/g)).map(a => a["0"]).length;
+        if (typeof macro === "string") {
+            numArgs = new Array(...macro.matchAll(/(?<=[^#])#\d+/g)).map(a => a["0"]).length;
         }
-        let fun = new KatexFunction(key.replaceAll("\\", ""), "macro", parseArgumentTypes(numArgs, undefined), []);
+        const fun = new KatexFunction(key.replaceAll("\\", ""), "macro", parseArgumentTypes(numArgs, undefined), []);
         all_functions.push(fun);
     }
 
-    const symbols: Record<string, Record<string, { font: string, group: string, replace: string }>> = katexSymbols;
+    const symbols = katexSymbols;
     const symbols_ignored_groups = ["accent-token"]
-    for (let symbol of Object.keys(symbols["math"])) {
+    for (const symbol of Object.keys(symbols.math)) {
         if (!symbol.startsWith("\\")) continue;
-        if (symbols_ignored_groups.includes(symbols["math"][symbol].group)) continue;
+        if (symbols_ignored_groups.includes(symbols.math[symbol].group)) continue;
 
         all_functions.push(new KatexFunction(symbol.replaceAll("\\", ""), "symbol", [], []));
     }

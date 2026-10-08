@@ -9,6 +9,18 @@
     font-family: ui-sans-serif, -apple-system, "system-ui", "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
 }
 
+#completions {
+    max-height: calc(28px * 5 + 5px * 2);
+    overflow-y: scroll;
+    scroll-behavior: smooth;
+
+    pointer-events: all;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+}
+
+/* max height: 28 (24line + 2padding-top + 2padding-bot) */
 #completions > p {
     margin: 0;
     padding: 2px;
