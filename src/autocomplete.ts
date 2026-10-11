@@ -538,6 +538,7 @@ class AttachedEquationField {
 class DocumentObserver extends MutationObserver {
     overlayContainer: HTMLDivElement | null = null;
     attachedEquationField: AttachedEquationField | null = null;
+    mutationNode: Node | null = null;
 
     constructor() {
         super((mutationList: MutationRecord[], o: MutationObserver) => (o as DocumentObserver).callback(mutationList, o));
@@ -557,18 +558,18 @@ class DocumentObserver extends MutationObserver {
                         this.attachedEquationField = new AttachedEquationField(element);
 
                         this.overlayContainer!.appendChild(this.attachedEquationField.completionsDiv)
+                        this.mutationNode = node;
                     }
                 });
             }
             if (!debug) if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
                 console.log('A child node has been removed:', mutation.removedNodes);
                 mutation.removedNodes.forEach(node => {
-                    const elements = (node as Element).querySelectorAll('div[role="dialog"] > div > .notranslate');
-                    if (elements.length > 0) {
+                    if (this.mutationNode === node) {
                         this.attachedEquationField?.close();
                         this.attachedEquationField = null;
                     }
-                })
+                });
             }
         }
     }
